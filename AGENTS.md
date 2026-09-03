@@ -22,6 +22,22 @@ dotnet build "C:\Users\Rocky\Documents\Workplace\Portofolio\VPS Monitor Desktop 
 
 Build output: `bin/Debug/net10.0-windows10.0.19041.0/win-x64/`
 
+## Installer (Windows .exe)
+
+Pakai **Inno Setup 6.7+** (install via `choco install innosetup`).
+
+```powershell
+# Step 1: Publish app (framework-dependent, ~150MB)
+dotnet publish -f net10.0-windows10.0.19041.0 -c Release -r win-x64 --self-contained false -p:PublishSingleFile=false -p:WindowsOnly=true
+
+# Step 2: Compile installer (~45 detik)
+& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer.iss
+
+# Output: installer-output\HetznerVPSMonitor-Setup-1.0.0.exe (~42MB compressed)
+```
+
+Script: `installer.iss` di root. Install destination default `C:\Program Files\Hetzner VPS Monitor\`. Start Menu + Desktop shortcut, Uninstaller included. **NOTE**: `installer-output/` di-gitignore (build artifact, jangan commit).
+
 ## Arsitektur (Folder-Based Clean Architecture)
 
 Single .csproj dengan 3 folder logis. **Tidak** multi-project — portofolio vibe coding lebih cepat iterasi.
