@@ -134,6 +134,50 @@ Tidak ada state management library (Redux, dll). Pakai:
 ✅ Error handling (banner + skeleton + last-known state)
 ✅ Mobile/responsive layout (Bootstrap grid breakpoints)
 
+## Known Issues
+
+### ⚠️ .NET 10 + MAUI 10.0.20 BlazorWebView Initialization Bug (Confirmed)
+
+**Symptom**: BlazorWebView stuck at "Loading..." forever. Even minimal `Home.razor` (just static text) doesn't render. Process leak: 28+ `msedgewebview2.exe` processes spawned, some with 100+ seconds CPU (tight retry loop).
+
+**Root cause**: Known bug in MAUI 10.0.20 preview + .NET 10 BlazorWebView initialization. NOT a code issue — minimal MAUI Hybrid template reproduces the same problem.
+
+**Status (2026-09-03)**: Awaiting MAUI/.NET 10 fix from Microsoft. No official ETA.
+
+**Workarounds** (in order of preference):
+
+1. **Downgrade to .NET 9 MAUI** (recommended):
+   ```powershell
+   # Install .NET 9 MAUI workload (requires user confirmation)
+   dotnet workload install maui-windows --sdk-version 9.0.308
+   # Then in csproj, change:
+   # <TargetFrameworks>net10.0-windows10.0.19041.0</TargetFrameworks>
+   # to:
+   # <TargetFrameworks>net9.0-windows10.0.19041.0</TargetFrameworks>
+   ```
+   All code stays the same. Tested runtime 9.0.11 is compatible.
+
+2. **Replace BlazorWebView with raw WebView2** + local Kestrel server (significant refactor)
+
+3. **Wait for MAUI fix** + run `dotnet workload update` periodically
+
+**Diagnostic commands**:
+```powershell
+# Check runnaway processes
+Get-Process -Name "msedgewebview2" | Measure-Object
+
+# Kill them
+Get-Process -Name "msedgewebview2" | Stop-Process -Force
+
+# Check MAUI workload version
+dotnet workload list
+
+# Check installed runtimes
+dotnet --list-runtimes
+```
+
+**Current state in this project**: Standard MAUI template reverted (no custom index.html, no MauiAsset for wwwroot). If user tests now, app will show "Loading..." forever with no error. To enable better error messages, can re-apply the custom index.html with `setTimeout` fallbacks from git history.
+
 ## Pending / Future Work
 
 Dari brief, 10 fitur opsional. Status:
