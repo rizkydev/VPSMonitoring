@@ -7,6 +7,7 @@
 - **Tujuan**: Desktop companion tool monitoring VPS Hetzner (Ubuntu/Linux) via SSH. On-demand only — tidak ada polling/background loop, semua data diambil saat user klik "Cek Sekarang".
 - **Stack**: .NET MAUI Hybrid (Blazor WebView) di .NET 10
 - **Target**: Windows desktop + MacCatalyst (csproj multi-target)
+- **GitHub**: https://github.com/rizkydev/VPSMonitoring.git (main branch, public)
 - **Brief lengkap**: lihat `brief-hetzner-vps-monitor.md` (tersimpan terpisah).
 
 ## Build & Run
