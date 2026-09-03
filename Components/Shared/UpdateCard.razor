@@ -557,7 +557,7 @@
             SetRebootStatus($"🔍 Menunggu server online... (percobaan {i + 1}/{maxAttempts}, ~{(i + 1) * 5}s)", "🔄", "alert-info");
             try { await Task.Delay(TimeSpan.FromSeconds(5)); } catch { }
         }
-        var errMsg = "Server masih offline setelah 5 menit. Cek manual via Hetzner console.";
+        var errMsg = "Server masih offline setelah 5 menit. Cek manual via console provider VPS Anda.";
         SetRebootStatus($"❌ {errMsg}", "❌", "alert-danger");
         _rebootPolling = false;
         _isRebooting = false;

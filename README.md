@@ -1,6 +1,6 @@
-# 🖥️ Hetzner VPS Monitor Desktop App
+# 🖥️ VPS Monitoring Desktop
 
-> Desktop companion tool monitoring VPS Hetzner (Ubuntu/Linux) via SSH. On-demand only — tidak ada polling/background loop, semua data diambil saat user klik "Cek Sekarang".
+> Desktop companion tool monitoring VPS (Ubuntu/Linux) via SSH. On-demand only — tidak ada polling/background loop, semua data diambil saat user klik "Cek Sekarang". Universal: support semua provider VPS Linux.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 [![.NET 10](https://img.shields.io/badge/.NET-10.0-blue.svg)](https://dotnet.microsoft.com/)
@@ -21,10 +21,10 @@
 
 ## 🎯 Gambaran
 
-Aplikasi desktop untuk **monitoring VPS Hetzner** tanpa harus login ke web console Hetzner atau SSH manual. On-demand monitoring — tidak ada auto-polling, jadi tidak membebani resource server. Semua data dikumpulkan via SSH command yang dikirim saat user klik tombol "Cek Sekarang".
+Aplikasi desktop untuk **monitoring VPS Linux** tanpa harus login ke web console provider atau SSH manual. On-demand monitoring — tidak ada auto-polling, jadi tidak membebani resource server. Semua data dikumpulkan via SSH command yang dikirim saat user klik tombol "Cek Sekarang".
 
 **Kenapa perlu?**
-- Tidak perlu buka Hetzner console hanya untuk cek CPU/RAM
+- Tidak perlu buka web console provider hanya untuk cek CPU/RAM
 - Lihat semua metrics dalam satu dashboard rapi
 - Restart service, update package, reboot server — semua dari satu window
 - History log operasi untuk audit trail
@@ -193,7 +193,7 @@ Output di `bin\Release\net10.0-windows10.0.19041.0\win-x64\publish\`.
 
 **Tanggung jawab Anda sebagai user:**
 - 🔍 **Baca setiap command** sebelum klik OK (app nampilkan command yang akan dijalankan, tapi tidak setiap output detail)
-- 🧪 **Test di VPS non-production dulu** — pakai Hetzner test instance atau VPS lain
+- 🧪 **Test di VPS non-production dulu** — pakai VPS development atau instance terpisah
 - 💾 **Backup data** sebelum run "Force Upgrade" atau "Reboot"
 - 📜 **Audit Logs** secara berkala di tab `📋 Logs` — semua operasi tercatat dengan timestamp
 - 🔐 **Jangan share kredensial** — kredensial hanya tersimpan di mesin lokal Anda

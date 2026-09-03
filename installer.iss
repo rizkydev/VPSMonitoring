@@ -1,10 +1,11 @@
 ; =====================================================
-; Inno Setup Script untuk Hetzner VPS Monitor
+; Inno Setup Script untuk VPS Monitoring Desktop
 ; Generated untuk portofolio @rizkydev
+; Universal — tidak spesifik ke satu provider
 ; =====================================================
 
-#define MyAppName "Hetzner VPS Monitor"
-#define MyAppDisplayName "Hetzner VPS Monitor Desktop"
+#define MyAppName "VPS Monitoring Desktop"
+#define MyAppDisplayName "VPS Monitoring Desktop"
 #define MyAppVersion "1.0.0"
 #define MyAppPublisher "Rizky (rizkydev)"
 #define MyAppURL "https://github.com/rizkydev/VPSMonitoring"
@@ -27,7 +28,7 @@ DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
 LicenseFile=LICENSE
 OutputDir=installer-output
-OutputBaseFilename=HetznerVPSMonitor-Setup-{#MyAppVersion}
+OutputBaseFilename=VPSMonitoringDesktop-Setup-{#MyAppVersion}
 SetupIconFile=
 Compression=lzma2/ultra64
 SolidCompression=yes

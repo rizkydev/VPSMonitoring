@@ -32,7 +32,7 @@ including but not limited to:
   - Server downtime, data loss, or corruption
   - Security vulnerabilities or unauthorized access
   - System instability, package conflicts, or dependency failures
-  - Costs incurred from cloud resources (Hetzner, AWS, etc.)
+  - Costs incurred from cloud resources (any provider)
   - Any other direct, indirect, incidental, special, exemplary, or
     consequential damages
 

@@ -1,14 +1,14 @@
-# AGENTS.md — Hetzner VPS Monitor Desktop App
+# AGENTS.md — VPS Monitoring Desktop
 
 > Project memory untuk sesi vibe coding selanjutnya. Baca dulu sebelum kerja di project ini.
 
 ## Project Overview
 
-- **Tujuan**: Desktop companion tool monitoring VPS Hetzner (Ubuntu/Linux) via SSH. On-demand only — tidak ada polling/background loop, semua data diambil saat user klik "Cek Sekarang".
+- **Tujuan**: Desktop companion tool monitoring VPS (Ubuntu/Linux) via SSH. On-demand only — tidak ada polling/background loop, semua data diambil saat user klik "Cek Sekarang". Universal: support semua provider VPS Linux.
 - **Stack**: .NET MAUI Hybrid (Blazor WebView) di .NET 10
 - **Target**: Windows desktop + MacCatalyst (csproj multi-target)
 - **GitHub**: https://github.com/rizkydev/VPSMonitoring.git (main branch, public)
-- **Brief lengkap**: lihat `brief-hetzner-vps-monitor.md` (tersimpan terpisah).
+- **Brief lengkap**: lihat `brief-vps-monitor.md` (tersimpan terpisah, file referensi original).
 
 ## Build & Run
 
@@ -33,10 +33,10 @@ dotnet publish -f net10.0-windows10.0.19041.0 -c Release -r win-x64 --self-conta
 # Step 2: Compile installer (~45 detik)
 & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer.iss
 
-# Output: installer-output\HetznerVPSMonitor-Setup-1.0.0.exe (~42MB compressed)
+# Output: installer-output\VPSMonitoringDesktop-Setup-1.0.0.exe (~42MB compressed)
 ```
 
-Script: `installer.iss` di root. Install destination default `C:\Program Files\Hetzner VPS Monitor\`. Start Menu + Desktop shortcut, Uninstaller included. **NOTE**: `installer-output/` di-gitignore (build artifact, jangan commit).
+Script: `installer.iss` di root. Install destination default `C:\Program Files\VPS Monitoring Desktop\`. Start Menu + Desktop shortcut, Uninstaller included. **NOTE**: `installer-output/` di-gitignore (build artifact, jangan commit).
 
 ## Arsitektur (Folder-Based Clean Architecture)
 
@@ -151,7 +151,7 @@ Dari brief, 10 fitur opsional. Status:
 | 9 | Quick Action (restart service) | ❌ — perlu konfirmasi dialog + `ISshService.ExecuteCommandAsync` (sudah ada). |
 | 10 | Auto-detect OS Family | ✅ enum-nya done, command selection belum di-switch per family. |
 
-**Belum test runtime**: kode sudah compile tapi belum dijalankan dengan VPS Hetzner sungguhan. Untuk verifikasi pertama, butuh:
+**Belum test runtime**: kode sudah compile tapi belum dijalankan dengan VPS sungguhan. Untuk verifikasi pertama, butuh:
 - VPS Ubuntu dengan SSH aktif
 - Akses password ATAU private key
 - Setujui bahwa beberapa command mungkin butuh sudo (UFW)

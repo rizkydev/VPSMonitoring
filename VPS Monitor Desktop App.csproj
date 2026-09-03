@@ -30,7 +30,10 @@
         <MauiXamlInflator>SourceGen</MauiXamlInflator>
 
         <!-- Display name -->
-        <ApplicationTitle>VPS Monitor Desktop App</ApplicationTitle>
+        <ApplicationTitle>VPS Monitoring Desktop</ApplicationTitle>
+
+        <!-- Blazor: tampilkan error detail di Release untuk debug black-screen & blank page -->
+        <DetailedErrors>true</DetailedErrors>
 
         <!-- App Identifier -->
         <ApplicationId>com.companyname.vpsmonitordesktopapp</ApplicationId>
