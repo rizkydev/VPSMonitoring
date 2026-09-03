@@ -9,7 +9,7 @@
 
         protected override Window CreateWindow(IActivationState? activationState)
         {
-            return new Window(new MainPage()) { Title = "VPS Monitor Desktop App" };
+            return new Window(new MainPage()) { Title = "VPS Monitoring Desktop" };
         }
     }
 }
