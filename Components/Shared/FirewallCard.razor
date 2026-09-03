@@ -1,0 +1,51 @@
+@*
+    Status firewall (UFW) + port yang terbuka.
+*@
+
+@if (_status is null)
+{
+    <div class="empty-state text-center text-secondary py-3">
+        <small>Informasi firewall tidak tersedia (membutuhkan sudo atau UFW belum terinstall).</small>
+    </div>
+}
+else
+{
+    <div class="firewall-status">
+        <div class="d-flex align-items-center gap-2 mb-2">
+            <span class="status-indicator @(_status.IsActive ? "active" : "inactive")"
+                  aria-hidden="true"></span>
+            <span class="fw-semibold">
+                @(_status.IsActive ? "Aktif" : "Nonaktif")
+            </span>
+        </div>
+
+        @if (_status.OpenPorts.Count > 0)
+        {
+            <ul class="firewall-rules">
+                @foreach (var rule in _status.OpenPorts)
+                {
+                    <li class="firewall-rule">
+                        <span class="rule-port font-monospace">@rule.To</span>
+                        <span class="rule-action rule-@rule.Action.ToLowerInvariant()">@rule.Action</span>
+                        <span class="rule-from text-secondary">@rule.From</span>
+                    </li>
+                }
+            </ul>
+        }
+        else if (_status.IsActive)
+        {
+            <div class="text-secondary small">Tidak ada rule yang terbuka.</div>
+        }
+    </div>
+}
+
+@code {
+    [Parameter, EditorRequired] public FirewallStatus? Status { get; set; }
+
+    private FirewallStatus? _status;
+
+    protected override void OnParametersSet()
+    {
+        _status = Status;
+    }
+}

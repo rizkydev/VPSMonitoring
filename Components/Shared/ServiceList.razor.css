@@ -1,0 +1,82 @@
+.service-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.service-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.375rem 0.75rem;
+    background-color: var(--bs-tertiary-bg);
+    border: 1px solid var(--bs-border-color);
+    border-radius: 999px;
+    font-size: 0.85rem;
+    transition: all 0.15s ease;
+}
+
+.service-pill:hover {
+    background-color: var(--bs-secondary-bg);
+}
+
+.service-dot {
+    width: 0.625rem;
+    height: 0.625rem;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.service-active .service-dot {
+    background-color: #198754;
+    box-shadow: 0 0 0 3px rgba(25, 135, 84, 0.25);
+}
+
+.service-active {
+    border-color: rgba(25, 135, 84, 0.4);
+}
+
+.service-active .service-state {
+    color: #75e6a0;
+    font-weight: 600;
+}
+
+.service-inactive .service-dot {
+    background-color: #6c757d;
+}
+
+.service-failed .service-dot {
+    background-color: #dc3545;
+    box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.25);
+}
+
+.service-failed {
+    border-color: rgba(220, 53, 69, 0.4);
+}
+
+.service-failed .service-state {
+    color: #f1a8a8;
+    font-weight: 600;
+}
+
+.service-unknown .service-dot {
+    background-color: #6c757d;
+    opacity: 0.5;
+}
+
+.service-name {
+    font-family: var(--bs-font-monospace);
+    font-size: 0.8rem;
+}
+
+.service-state {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    color: var(--bs-secondary-color);
+    letter-spacing: 0.02em;
+}
+
+.empty-state {
+    background-color: var(--bs-tertiary-bg);
+    border-radius: 0.5rem;
+}

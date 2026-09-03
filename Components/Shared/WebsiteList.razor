@@ -1,0 +1,63 @@
+@*
+    Daftar website yang di-host. Clickable, badge SSL, Launcher.OpenAsync ke browser default.
+*@
+
+@if (_websites.Count == 0)
+{
+    <div class="empty-state text-center text-secondary py-4">
+        <div class="display-1">🌐</div>
+        <p class="mb-0">Tidak ada website terdeteksi di server.</p>
+        <small>Pastikan nginx/apache aktif dan ada site di <code>sites-enabled</code>.</small>
+    </div>
+}
+else
+{
+    <div class="row g-2">
+        @foreach (var site in _websites)
+        {
+            <div class="col-12 col-md-6 col-xl-4">
+                <button type="button"
+                        class="website-card w-100 text-start"
+                        @onclick="@(() => OpenWebsite(site))"
+                        title="Klik untuk membuka di browser">
+                    <div class="d-flex align-items-center gap-2 mb-1">
+                        <span class="server-badge server-@site.ServerType">@site.ServerType</span>
+                        @if (site.HasSsl)
+                        {
+                            <span class="ssl-badge" title="SSL aktif (port 443 listening)">🔒 SSL</span>
+                        }
+                    </div>
+                    <div class="website-domain">@site.Domain</div>
+                    <div class="website-url text-secondary font-monospace small">
+                        @(site.HasSsl ? "https" : "http")://@site.Domain
+                    </div>
+                </button>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<HostedWebsite> Websites { get; set; } = Array.Empty<HostedWebsite>();
+
+    private List<HostedWebsite> _websites = new();
+
+    protected override void OnParametersSet()
+    {
+        _websites = Websites.ToList();
+    }
+
+    private async Task OpenWebsite(HostedWebsite site)
+    {
+        var scheme = site.HasSsl ? "https" : "http";
+        var uri = $"{scheme}://{site.Domain}";
+        try
+        {
+            await Launcher.Default.OpenAsync(uri);
+        }
+        catch
+        {
+            // Browser gagal dibuka — diam saja untuk portofolio demo.
+        }
+    }
+}

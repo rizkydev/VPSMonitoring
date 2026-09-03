@@ -1,0 +1,46 @@
+MIT License
+
+Copyright (c) 2026 Rizky (rizkydev)
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+**ATTRIBUTION REQUIREMENT:**
+Any person or organization that uses, copies, modifies, distributes, or
+creates derivative works of this Software (in whole or in part) MUST
+preserve the above copyright notice, this permission notice, and the
+following disclaimer in all copies or substantial portions of the Software.
+Credit to the original author ("Rizky / rizkydev") must be clearly visible
+in:
+  - Any distributed binary or source code
+  - README, documentation, or user-facing materials
+  - Public-facing deployments (web/UI footer, About page, etc.)
+  - Academic papers, blog posts, or presentations referencing this work
+
+**NO LIABILITY:**
+The Software is provided "as is", without warranty of any kind, express or
+implied, including but not limited to the warranties of merchantability,
+fitness for a particular purpose and noninfringement. In no event shall the
+authors or copyright holders be liable for any claim, damages, loss of data,
+profit, business interruption, or other tangible/intangible loss, arising
+from or in connection with the use or performance of this Software,
+including but not limited to:
+  - Server downtime, data loss, or corruption
+  - Security vulnerabilities or unauthorized access
+  - System instability, package conflicts, or dependency failures
+  - Costs incurred from cloud resources (Hetzner, AWS, etc.)
+  - Any other direct, indirect, incidental, special, exemplary, or
+    consequential damages
+
+The user is solely responsible for:
+  - Testing the Software before deploying to production
+  - Maintaining backups of their data and server state
+  - Reviewing and understanding all commands executed on their server
+  - Compliance with applicable laws and their hosting provider's ToS
+
+THE SOFTWARE IS PROVIDED "AS IS", AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+AND LIABILITY AS DESCRIBED ABOVE.

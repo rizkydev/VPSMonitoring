@@ -1,0 +1,54 @@
+.docker-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.docker-item {
+    background-color: var(--bs-tertiary-bg);
+    border: 1px solid var(--bs-border-color);
+    border-radius: 0.5rem;
+    padding: 0.625rem 0.875rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.docker-icon {
+    font-size: 1.1rem;
+}
+
+.docker-name {
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.docker-image {
+    font-size: 0.75rem;
+}
+
+.docker-ports {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    flex-shrink: 0;
+}
+
+.port-badge {
+    display: inline-block;
+    padding: 0.125rem 0.5rem;
+    background-color: var(--bs-secondary-bg);
+    border: 1px solid var(--bs-border-color);
+    border-radius: 0.25rem;
+    font-family: var(--bs-font-monospace);
+    font-size: 0.75rem;
+    color: var(--bs-info);
+}
+
+.empty-state {
+    background-color: var(--bs-tertiary-bg);
+    border-radius: 0.5rem;
+}

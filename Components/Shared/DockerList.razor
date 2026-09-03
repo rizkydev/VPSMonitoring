@@ -1,0 +1,51 @@
+@*
+    Daftar container Docker yang sedang jalan + port yang di-expose.
+*@
+
+@if (_containers.Count == 0)
+{
+    <div class="empty-state text-center text-secondary py-3">
+        <small>Docker tidak terinstall atau tidak ada container yang jalan.</small>
+    </div>
+}
+else
+{
+    <ul class="docker-list">
+        @foreach (var c in _containers)
+        {
+            <li class="docker-item">
+                <div class="d-flex align-items-start gap-2 flex-grow-1 min-w-0">
+                    <span class="docker-icon" aria-hidden="true">📦</span>
+                    <div class="flex-grow-1 min-w-0">
+                        <div class="docker-name text-truncate" title="@c.Name">@c.Name</div>
+                        <div class="docker-image text-secondary font-monospace small text-truncate" title="@c.Image">@c.Image</div>
+                    </div>
+                </div>
+                <div class="docker-ports">
+                    @if (c.ExposedPorts.Count == 0)
+                    {
+                        <span class="text-secondary small">no ports</span>
+                    }
+                    else
+                    {
+                        @foreach (var p in c.ExposedPorts)
+                        {
+                            <span class="port-badge">@p</span>
+                        }
+                    }
+                </div>
+            </li>
+        }
+    </ul>
+}
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<DockerContainer> Containers { get; set; } = Array.Empty<DockerContainer>();
+
+    private List<DockerContainer> _containers = new();
+
+    protected override void OnParametersSet()
+    {
+        _containers = Containers.ToList();
+    }
+}

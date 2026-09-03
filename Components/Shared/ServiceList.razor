@@ -1,0 +1,34 @@
+@*
+    Daftar service systemd dengan status aktif/inactive.
+*@
+
+@if (_services.Count == 0)
+{
+    <div class="empty-state text-center text-secondary py-3">
+        <p class="mb-0 small">Tidak ada service yang dipantau terdeteksi.</p>
+    </div>
+}
+else
+{
+    <div class="service-grid">
+        @foreach (var svc in _services)
+        {
+            <div class="service-pill service-@svc.State">
+                <span class="service-dot" aria-hidden="true"></span>
+                <span class="service-name">@svc.Name</span>
+                <span class="service-state">@svc.State</span>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<ServiceStatus> Services { get; set; } = Array.Empty<ServiceStatus>();
+
+    private List<ServiceStatus> _services = new();
+
+    protected override void OnParametersSet()
+    {
+        _services = Services.ToList();
+    }
+}

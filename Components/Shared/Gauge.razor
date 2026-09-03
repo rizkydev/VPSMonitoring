@@ -1,0 +1,30 @@
+@*
+    Gauge lingkaran pakai CSS conic-gradient. Zero JS, zero dependency.
+    Color otomatis sesuai threshold: < 70% hijau, 70-90% kuning, > 90% merah.
+*@
+
+<div class="gauge @CssClass"
+     style="--gauge-value: @Value.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture); --gauge-color: @ColorHex; --gauge-size: @(Size)px;">
+    <div class="gauge-inner">
+        <div class="gauge-value">@Value.ToString("0.#")%</div>
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public double Value { get; set; }
+    [Parameter] public int Size { get; set; } = 120;
+    [Parameter] public string? CssClass { get; set; }
+
+    /// <summary>
+    /// Threshold warna. Default: hijau &lt; 70, kuning 70-90, merah &gt;= 90.
+    /// </summary>
+    [Parameter] public double WarningThreshold { get; set; } = 70;
+    [Parameter] public double CriticalThreshold { get; set; } = 90;
+
+    private string ColorHex => Value switch
+    {
+        >= 90 => "#dc3545", // bootstrap danger
+        >= 70 => "#ffc107", // bootstrap warning
+        _     => "#198754", // bootstrap success
+    };
+}

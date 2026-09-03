@@ -1,0 +1,61 @@
+.dashboard {
+    min-height: 100vh;
+}
+
+.metric-card {
+    background-color: var(--bs-tertiary-bg);
+    border-radius: 0.75rem;
+    transition: transform 0.15s ease;
+}
+
+.metric-card:hover {
+    transform: translateY(-2px);
+}
+
+.metric-icon {
+    font-size: 1.5rem;
+    line-height: 1;
+    margin-bottom: 0.25rem;
+}
+
+.empty-value {
+    font-size: 2.5rem;
+    font-weight: 600;
+    color: var(--bs-secondary);
+    line-height: 1;
+}
+
+.uptime-value {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 120px;
+}
+
+.disk-row {
+    background-color: var(--bs-tertiary-bg);
+    border-radius: 0.5rem;
+}
+
+.section-card {
+    background-color: var(--bs-tertiary-bg);
+    border-radius: 0.75rem;
+}
+
+.skeleton-line {
+    height: 0.75rem;
+    background-color: var(--bs-secondary-bg);
+    border-radius: 0.25rem;
+    margin-left: auto;
+    margin-right: auto;
+    animation: skeleton-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes skeleton-pulse {
+    0%, 100% { opacity: 0.4; }
+    50%      { opacity: 0.8; }
+}
+
+.min-w-0 {
+    min-width: 0;
+}

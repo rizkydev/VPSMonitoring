@@ -1,0 +1,170 @@
+@page "/logs"
+@implements IDisposable
+@inject IUpdateLogService LogService
+@inject NavigationManager Nav
+
+<PageTitle>Logs — Hetzner VPS Monitor</PageTitle>
+
+<div class="logs-page container-xl py-4">
+    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-4">
+        <div>
+            <h1 class="h3 mb-1">System Update Logs</h1>
+            <p class="text-secondary mb-0">
+                Histori semua proses update &amp; reboot. Disimpan lokal, persist antar session.
+            </p>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+            <span class="badge text-bg-secondary">@_entries.Count entri</span>
+            <button class="btn btn-outline-primary btn-sm" @onclick="LoadEntries" disabled="@_isLoading">
+                @if (_isLoading)
+                {
+                    <span class="spinner-border spinner-border-sm me-1"></span>
+                }
+                <span>Refresh</span>
+            </button>
+            <button class="btn btn-outline-danger btn-sm" @onclick="HandleClearAll"
+                    disabled="@(_isLoading || _entries.Count == 0)">
+                🗑️ Hapus Semua
+            </button>
+        </div>
+    </div>
+
+    @if (_isLoading && _entries.Count == 0)
+    {
+        <div class="text-center text-secondary py-5">
+            <div class="spinner-border" role="status"></div>
+            <p class="mt-2 mb-0">Memuat log...</p>
+        </div>
+    }
+    else if (_entries.Count == 0)
+    {
+        <div class="empty-state text-center text-secondary py-5">
+            <div class="display-1">📋</div>
+            <p class="mb-0">Belum ada log. Log akan muncul setelah Anda jalankan operasi update atau reboot.</p>
+        </div>
+    }
+    else
+    {
+        <div class="logs-list">
+            @foreach (var entry in _entries)
+            {
+                <article class="card log-entry border-0 shadow-sm @GetEntryCssClass(entry)">
+                    <div class="card-body p-3">
+                        <div class="d-flex align-items-start gap-3">
+                            <span class="log-icon" aria-hidden="true">@GetEntryIcon(entry)</span>
+                            <div class="flex-grow-1 min-w-0">
+                                <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-1">
+                                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                                        <span class="log-action log-action-@entry.Action">@GetActionLabel(entry.Action)</span>
+                                        @if (entry.Success)
+                                        {
+                                            <span class="badge text-bg-success">✓ Sukses</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge text-bg-danger">✗ Gagal</span>
+                                        }
+                                        @if (entry.RebootRequired)
+                                        {
+                                            <span class="badge text-bg-warning">⚠️ Reboot</span>
+                                        }
+                                    </div>
+                                    <span class="text-secondary small log-time" title="@entry.StartedAt.ToLocalTime().ToString("F")">
+                                        @FormatRelativeTime(entry.StartedAt)
+                                    </span>
+                                </div>
+                                <div class="log-summary">@entry.Summary</div>
+                                @if (!string.IsNullOrEmpty(entry.ErrorMessage))
+                                {
+                                    <div class="text-danger small mt-1">@entry.ErrorMessage</div>
+                                }
+                                @if (!string.IsNullOrEmpty(entry.FullLog))
+                                {
+                                    <details class="mt-2">
+                                        <summary class="text-secondary small log-log-toggle">Lihat full log</summary>
+                                        <pre class="log-full">@entry.FullLog</pre>
+                                    </details>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </article>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private List<UpdateLogEntry> _entries = new();
+    private bool _isLoading;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadEntries();
+    }
+
+    private async Task LoadEntries()
+    {
+        _isLoading = true;
+        try
+        {
+            var all = await LogService.GetAllAsync();
+            _entries = all.ToList();
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task HandleClearAll()
+    {
+        var confirmed = await JS.InvokeAsync<bool>("confirm",
+            "Hapus semua log? Tindakan ini tidak bisa dibatalkan.");
+        if (!confirmed) return;
+
+        await LogService.ClearAllAsync();
+        _entries.Clear();
+    }
+
+    private static string GetActionLabel(string action) => action switch
+    {
+        "update" => "📦 Update",
+        "reboot" => "🔌 Reboot",
+        "check" => "🔍 Check",
+        _ => action,
+    };
+
+    private static string GetEntryIcon(UpdateLogEntry entry) => entry.Action switch
+    {
+        "update" => "📦",
+        "reboot" => "🔌",
+        "check" => "🔍",
+        _ => "📋",
+    };
+
+    private static string GetEntryCssClass(UpdateLogEntry entry)
+    {
+        if (!entry.Success) return "log-entry-failed";
+        if (entry.Action == "reboot" && entry.RebootPerformed) return "log-entry-reboot";
+        return "";
+    }
+
+    private static string FormatRelativeTime(DateTime utcTime)
+    {
+        var local = utcTime.ToLocalTime();
+        var delta = DateTime.Now - local;
+        if (delta.TotalSeconds < 60) return "baru saja";
+        if (delta.TotalMinutes < 60) return $"{(int)delta.TotalMinutes} menit lalu";
+        if (delta.TotalHours < 24) return $"{(int)delta.TotalHours} jam lalu";
+        if (delta.TotalDays < 7) return $"{(int)delta.TotalDays} hari lalu";
+        return local.ToString("dd MMM yyyy HH:mm");
+    }
+
+    [Inject] private IJSRuntime JS { get; set; } = null!;
+
+    public void Dispose()
+    {
+        // No-op
+    }
+}

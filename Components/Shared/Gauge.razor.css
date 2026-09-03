@@ -1,0 +1,50 @@
+.gauge {
+    width: var(--gauge-size);
+    height: var(--gauge-size);
+    border-radius: 50%;
+    position: relative;
+    background: conic-gradient(
+        var(--gauge-color) calc(var(--gauge-value) * 1%),
+        var(--bs-tertiary-bg) 0
+    );
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.4s ease;
+}
+
+.gauge-inner {
+    position: absolute;
+    inset: 12%;
+    background-color: var(--bs-body-bg);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.gauge-value {
+    font-size: 1.15rem;
+    font-weight: 600;
+    color: var(--gauge-color);
+    line-height: 1;
+}
+
+.gauge.is-loading {
+    background: var(--bs-tertiary-bg);
+    animation: gauge-pulse 1.4s ease-in-out infinite;
+}
+
+.gauge.is-loading .gauge-value {
+    color: var(--bs-secondary);
+}
+
+.gauge.is-loading .gauge-inner::after {
+    content: "...";
+    color: var(--bs-secondary);
+}
+
+@keyframes gauge-pulse {
+    0%, 100% { opacity: 0.5; }
+    50%      { opacity: 1; }
+}

@@ -1,0 +1,403 @@
+﻿@page "/"
+@implements IDisposable
+@inject ICredentialStore CredentialStore
+@inject IVpsMonitorService MonitorService
+@inject NavigationManager Nav
+
+<PageTitle>Dashboard — Hetzner VPS Monitor</PageTitle>
+
+<div class="dashboard container-xl py-4">
+    <div class="d-flex align-items-center justify-content-between flex-wrap gap-3 mb-4">
+        <div>
+            <h1 class="h3 mb-1">Dashboard</h1>
+            <p class="text-secondary mb-0">
+                @if (_snapshot is not null && _snapshot.IsOnline)
+                {
+                    <span>Terakhir dicek: <strong>@_lastCheckedHuman</strong></span>
+                }
+                else
+                {
+                    <span>Belum pernah dicek. Klik tombol untuk mengambil snapshot.</span>
+                }
+            </p>
+        </div>
+        <button class="btn btn-primary btn-lg shadow-sm"
+                @onclick="HandleCekSekarang"
+                disabled="@_isLoading">
+            @if (_isLoading)
+            {
+                <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                <span>Memeriksa...</span>
+            }
+            else
+            {
+                <span aria-hidden="true">🔄</span>
+                <span class="ms-2">Cek Sekarang</span>
+            }
+        </button>
+    </div>
+
+    @if (!string.IsNullOrEmpty(_errorBanner))
+    {
+        <div class="alert alert-danger d-flex align-items-start gap-2 mb-4" role="alert">
+            <span aria-hidden="true">⚠️</span>
+            <div>
+                <strong>Gagal memeriksa server.</strong>
+                <div class="small">@_errorBanner</div>
+            </div>
+        </div>
+    }
+
+    @* === Resource Usage === *@
+    <div class="row g-3 mb-4">
+        <div class="col-12 col-sm-6 col-xl-3">
+            <article class="card metric-card h-100 border-0 shadow-sm">
+                <div class="card-body d-flex flex-column align-items-center text-center">
+                    <div class="metric-icon">🧠</div>
+                    <h2 class="h6 text-secondary text-uppercase fw-semibold mb-2">CPU</h2>
+                    @if (IsLoading)
+                    {
+                        <Gauge Value="0" CssClass="is-loading" Size="120" />
+                        <div class="skeleton-line w-50 mt-2"></div>
+                    }
+                    else if (_snapshot?.Cpu is { } cpu)
+                    {
+                        <Gauge Value="cpu.UsagePercent" Size="120" />
+                        <div class="mt-2 small text-secondary">
+                            @if (cpu.CoreCount > 0)
+                            {
+                                <span>@cpu.CoreCount cores</span>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="empty-value">—</div>
+                    }
+                </div>
+            </article>
+        </div>
+
+        <div class="col-12 col-sm-6 col-xl-3">
+            <article class="card metric-card h-100 border-0 shadow-sm">
+                <div class="card-body d-flex flex-column align-items-center text-center">
+                    <div class="metric-icon">💾</div>
+                    <h2 class="h6 text-secondary text-uppercase fw-semibold mb-2">Memory</h2>
+                    @if (IsLoading)
+                    {
+                        <Gauge Value="0" CssClass="is-loading" Size="120" />
+                        <div class="skeleton-line w-75 mt-2"></div>
+                    }
+                    else if (_snapshot?.Memory is { } mem)
+                    {
+                        <Gauge Value="mem.UsagePercent" Size="120" />
+                        <div class="mt-2 small text-secondary font-monospace">
+                            @mem.UsedGb / @mem.TotalGb GB
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="empty-value">—</div>
+                    }
+                </div>
+            </article>
+        </div>
+
+        <div class="col-12 col-sm-6 col-xl-3">
+            <article class="card metric-card h-100 border-0 shadow-sm">
+                <div class="card-body d-flex flex-column align-items-center text-center">
+                    <div class="metric-icon">📀</div>
+                    <h2 class="h6 text-secondary text-uppercase fw-semibold mb-2">Storage</h2>
+                    @if (IsLoading)
+                    {
+                        <Gauge Value="0" CssClass="is-loading" Size="120" />
+                        <div class="skeleton-line w-50 mt-2"></div>
+                    }
+                    else if (PrimaryStorage() is { } disk)
+                    {
+                        <Gauge Value="disk.UsagePercent" Size="120" />
+                        <div class="mt-2 small text-secondary font-monospace">
+                            @disk.UsedGb / @disk.TotalGb GB
+                        </div>
+                        <div class="small text-secondary">@disk.MountPoint</div>
+                    }
+                    else
+                    {
+                        <div class="empty-value">—</div>
+                    }
+                </div>
+            </article>
+        </div>
+
+        <div class="col-12 col-sm-6 col-xl-3">
+            <article class="card metric-card h-100 border-0 shadow-sm">
+                <div class="card-body d-flex flex-column align-items-center text-center">
+                    <div class="metric-icon">⏱️</div>
+                    <h2 class="h6 text-secondary text-uppercase fw-semibold mb-2">Uptime</h2>
+                    @if (IsLoading)
+                    {
+                        <Gauge Value="0" CssClass="is-loading" Size="120" />
+                        <div class="skeleton-line w-75 mt-2"></div>
+                    }
+                    else if (_snapshot?.Uptime is { } up && !string.IsNullOrEmpty(up.HumanReadable))
+                    {
+                        <div class="uptime-value">
+                            <div class="display-6 fw-semibold">@up.HumanReadable</div>
+                        </div>
+                        <div class="mt-2 small text-secondary font-monospace">
+                            load @up.LoadAverage1Min.ToString("0.00")
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="empty-value">—</div>
+                    }
+                </div>
+            </article>
+        </div>
+    </div>
+
+    @* === Multi-disk breakdown === *@
+    @if (_snapshot?.Storage is { Count: > 1 })
+    {
+        <section class="mb-4">
+            <h2 class="h6 text-secondary text-uppercase fw-semibold mb-2">All Disks</h2>
+            <div class="row g-2">
+                @foreach (var disk in _snapshot.Storage)
+                {
+                    <div class="col-12 col-md-6 col-xl-4">
+                        <div class="card disk-row border-0 shadow-sm">
+                            <div class="card-body py-2 px-3 d-flex align-items-center gap-3">
+                                <Gauge Value="disk.UsagePercent" Size="56" />
+                                <div class="flex-grow-1 min-w-0">
+                                    <div class="fw-semibold text-truncate" title="@disk.MountPoint">@disk.MountPoint</div>
+                                    <div class="small text-secondary font-monospace">
+                                        @disk.UsedGb / @disk.TotalGb GB
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        </section>
+    }
+
+    @* === Hosted Websites === *@
+    <section class="card section-card border-0 shadow-sm mb-4">
+        <div class="card-body">
+            <div class="d-flex align-items-center justify-content-between mb-3">
+                <h2 class="h5 mb-0">
+                    <span aria-hidden="true">🌐</span> Website yang Di-hosting
+                </h2>
+                @if (_snapshot?.Websites is { Count: > 0 } ws)
+                {
+                    <span class="badge text-bg-secondary">@ws.Count</span>
+                }
+            </div>
+            @if (IsLoading)
+            {
+                <div class="text-center text-secondary py-3">
+                    <div class="spinner-border spinner-border-sm me-2"></div>Memindai website...
+                </div>
+            }
+            else
+            {
+                <WebsiteList Websites="_snapshot?.Websites ?? Array.Empty<HostedWebsite>()" />
+            }
+        </div>
+    </section>
+
+    @* === Services + Firewall + Updates (3-column on xl) === *@
+    <div class="row g-3 mb-4">
+        <div class="col-12 col-xl-5">
+            <section class="card section-card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <h2 class="h5 mb-3">
+                        <span aria-hidden="true">⚙️</span> Service Status
+                    </h2>
+                    @if (IsLoading)
+                    {
+                        <div class="text-center text-secondary py-3">
+                            <div class="spinner-border spinner-border-sm me-2"></div>Memeriksa service...
+                        </div>
+                    }
+                    else
+                    {
+                        <ServiceList Services="_snapshot?.Services ?? Array.Empty<ServiceStatus>()" />
+                    }
+                </div>
+            </section>
+        </div>
+        <div class="col-12 col-md-6 col-xl-3">
+            <section class="card section-card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <h2 class="h5 mb-3">
+                        <span aria-hidden="true">🛡️</span> Firewall
+                    </h2>
+                    @if (IsLoading)
+                    {
+                        <div class="text-center text-secondary py-3">
+                            <div class="spinner-border spinner-border-sm me-2"></div>Memeriksa UFW...
+                        </div>
+                    }
+                    else
+                    {
+                        <FirewallCard Status="_snapshot?.Firewall" />
+                    }
+                </div>
+            </section>
+        </div>
+        <div class="col-12 col-md-6 col-xl-4">
+            <section class="card section-card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    @if (_config is not null)
+                    {
+                        <UpdateCard Config="_config" OnUpdated="HandleSnapshotUpdated" />
+                    }
+                </div>
+            </section>
+        </div>
+    </div>
+
+    @* === Docker Containers (conditional) === *@
+    @if (_snapshot?.DockerContainers is { Count: > 0 } dc)
+    {
+        <section class="card section-card border-0 shadow-sm mb-4">
+            <div class="card-body">
+                <div class="d-flex align-items-center justify-content-between mb-3">
+                    <h2 class="h5 mb-0">
+                        <span aria-hidden="true">📦</span> Docker Containers
+                    </h2>
+                    <span class="badge text-bg-secondary">@dc.Count</span>
+                </div>
+                <DockerList Containers="dc" />
+            </div>
+        </section>
+    }
+
+    @* === Software Installed === *@
+    <section class="card section-card border-0 shadow-sm mb-4">
+        <div class="card-body">
+            <div class="d-flex align-items-center justify-content-between mb-3">
+                <h2 class="h5 mb-0">
+                    <span aria-hidden="true">🧩</span> Software Terinstall
+                </h2>
+                @if (_snapshot?.Software is { Count: > 0 } sw)
+                {
+                    <span class="badge text-bg-secondary">@sw.Count</span>
+                }
+            </div>
+            @if (IsLoading)
+            {
+                <div class="text-center text-secondary py-3">
+                    <div class="spinner-border spinner-border-sm me-2"></div>Mengambil daftar package...
+                </div>
+            }
+            else
+            {
+                <SoftwareList Packages="_snapshot?.Software ?? Array.Empty<InstalledPackage>()" />
+            }
+        </div>
+    </section>
+</div>
+
+@code {
+    private SystemSnapshot? _snapshot;
+    private bool _isLoading;
+    private string? _errorBanner;
+    private CancellationTokenSource? _cts;
+    private SshConnectionConfig? _config;
+    private string _lastCheckedHuman = string.Empty;
+
+    private bool IsLoading => _isLoading && _snapshot is null;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _config = await CredentialStore.LoadAsync();
+        if (_config is null)
+        {
+            Nav.NavigateTo("/settings", forceLoad: false);
+        }
+    }
+
+    private async Task HandleCekSekarang()
+    {
+        if (_config is null)
+        {
+            Nav.NavigateTo("/settings", forceLoad: false);
+            return;
+        }
+
+        _cts?.Cancel();
+        _cts?.Dispose();
+        _cts = new CancellationTokenSource();
+
+        _isLoading = true;
+        _errorBanner = null;
+        StateHasChanged();
+
+        try
+        {
+            var snapshot = await MonitorService.GetSnapshotAsync(_config, _cts.Token);
+            _snapshot = snapshot;
+
+            if (!snapshot.IsOnline || snapshot.ErrorMessage is not null)
+            {
+                _errorBanner = snapshot.ErrorMessage ?? "Server tidak merespon.";
+            }
+            else
+            {
+                _lastCheckedHuman = FormatHumanReadable(snapshot.CheckedAt);
+            }
+        }
+        catch (Exception ex)
+        {
+            _errorBanner = ex.Message;
+        }
+        finally
+        {
+            _isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private StorageMetrics? PrimaryStorage()
+    {
+        if (_snapshot?.Storage is not { Count: > 0 }) return null;
+        return _snapshot.Storage.FirstOrDefault(s => s.MountPoint == "/")
+               ?? _snapshot.Storage.OrderByDescending(s => s.UsagePercent).First();
+    }
+
+    private async Task HandleSnapshotUpdated()
+    {
+        // Setelah update, re-fetch snapshot untuk reflect versi baru di services
+        if (_config is null) return;
+        try
+        {
+            var snapshot = await MonitorService.GetSnapshotAsync(_config);
+            _snapshot = snapshot;
+            StateHasChanged();
+        }
+        catch
+        {
+            // Abaikan — data dashboard mungkin stale, tidak critical
+        }
+    }
+
+    private static string FormatHumanReadable(DateTime utcCheckedAt)
+    {
+        var local = utcCheckedAt.ToLocalTime();
+        var delta = DateTime.Now - local;
+        if (delta.TotalSeconds < 60) return "baru saja";
+        if (delta.TotalMinutes < 60) return $"{(int)delta.TotalMinutes} menit lalu";
+        if (delta.TotalHours < 24) return $"{(int)delta.TotalHours} jam lalu";
+        return local.ToString("dd MMM HH:mm");
+    }
+
+    public void Dispose()
+    {
+        _cts?.Cancel();
+        _cts?.Dispose();
+    }
+}

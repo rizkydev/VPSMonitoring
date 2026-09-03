@@ -1,0 +1,127 @@
+@*
+    Software terinstall: search + filter kategori + grouped list.
+*@
+
+<div class="software-section">
+    <div class="d-flex flex-wrap gap-2 align-items-center mb-3">
+        <div class="flex-grow-1">
+            <input type="search"
+                   class="form-control"
+                   placeholder="🔍 Cari package..."
+                   @bind="_search"
+                   @bind:event="oninput" />
+        </div>
+        <div class="text-secondary small">
+            @if (_search.Length > 0)
+            {
+                <span>@FilteredPackages().Count() dari @_allPackages.Count</span>
+            }
+            else
+            {
+                <span>@_allPackages.Count package</span>
+            }
+        </div>
+    </div>
+
+    <div class="category-chips mb-3">
+        <button type="button"
+                class="category-chip @(_activeCategory is null ? "active" : null)"
+                @onclick="@(() => _activeCategory = null)">
+            Semua (@_allPackages.Count)
+        </button>
+        @foreach (var cat in Enum.GetValues<PackageCategory>())
+        {
+            var count = _allPackages.Count(p => p.Category == cat);
+            if (count == 0) continue;
+            <button type="button"
+                    class="category-chip @(_activeCategory == cat ? "active" : null) category-@cat.ToString().ToLowerInvariant()"
+                    @onclick="@(() => _activeCategory = cat)">
+                @CategoryIcon(cat) @cat (@count)
+            </button>
+        }
+    </div>
+
+    @if (!FilteredPackages().Any())
+    {
+        <div class="empty-state text-center text-secondary py-4">
+            <div class="display-1">📦</div>
+            <p>Tidak ada package yang cocok dengan filter.</p>
+        </div>
+    }
+    else
+    {
+        <div class="software-groups">
+            @foreach (var group in GroupedPackages())
+            {
+                <details class="software-group" open>
+                    <summary class="software-group-header">
+                        <span class="group-icon">@CategoryIcon(group.Category)</span>
+                        <span class="group-label">@group.Category</span>
+                        <span class="badge text-bg-secondary">@group.Packages.Count</span>
+                    </summary>
+                    <ul class="software-list">
+                        @foreach (var pkg in group.Packages.Take(50))
+                        {
+                            <li class="software-item">
+                                <span class="software-name" title="@pkg.Name">@pkg.Name</span>
+                                <span class="software-version text-secondary font-monospace">@pkg.Version</span>
+                            </li>
+                        }
+                        @if (group.Packages.Count > 50)
+                        {
+                            <li class="software-item text-secondary small">
+                                ...dan @(group.Packages.Count - 50) lainnya
+                            </li>
+                        }
+                    </ul>
+                </details>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<InstalledPackage> Packages { get; set; } = Array.Empty<InstalledPackage>();
+
+    private List<InstalledPackage> _allPackages = new();
+    private PackageCategory? _activeCategory;
+    private string _search = string.Empty;
+
+    protected override void OnParametersSet()
+    {
+        _allPackages = Packages.ToList();
+    }
+
+    private IEnumerable<InstalledPackage> FilteredPackages()
+    {
+        var query = _allPackages.AsEnumerable();
+        if (_activeCategory.HasValue)
+            query = query.Where(p => p.Category == _activeCategory.Value);
+        if (!string.IsNullOrWhiteSpace(_search))
+        {
+            var term = _search.Trim();
+            query = query.Where(p => p.Name.Contains(term, StringComparison.OrdinalIgnoreCase));
+        }
+        return query.OrderBy(p => p.Name);
+    }
+
+    private IEnumerable<(PackageCategory Category, List<InstalledPackage> Packages)> GroupedPackages()
+    {
+        return FilteredPackages()
+            .GroupBy(p => p.Category)
+            .OrderBy(g => g.Key)
+            .Select(g => (g.Key, g.ToList()));
+    }
+
+    private static string CategoryIcon(PackageCategory cat) => cat switch
+    {
+        PackageCategory.WebServer  => "🌐",
+        PackageCategory.Database    => "🗄️",
+        PackageCategory.Runtime     => "⚙️",
+        PackageCategory.Container   => "📦",
+        PackageCategory.Security    => "🛡️",
+        PackageCategory.Network     => "🔌",
+        PackageCategory.System      => "🧩",
+        _ => "📄",
+    };
+}

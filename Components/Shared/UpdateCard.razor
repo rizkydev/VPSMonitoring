@@ -1,0 +1,574 @@
+@*
+    System Updates card dengan 3 tab:
+    1. Update Packages (apt-get upgrade -y, default, conservative)
+    2. Force Update (apt full-upgrade -y, aggressive, bypass phased)
+    3. Force Install by Name (apt install -y --only-upgrade <nama>, granular)
+    Plus 🧹 Refresh Cache di header (clean cache + re-fetch index).
+*@
+
+<div class="update-card">
+    @* === Header: Cek Update + Refresh Cache === *@
+    <div class="update-header">
+        <div class="update-header-title">
+            <span class="update-icon" aria-hidden="true">🔄</span>
+            <span class="fw-semibold">System Updates</span>
+        </div>
+        <div class="update-header-actions">
+            <button class="btn btn-sm btn-outline-secondary"
+                    @onclick="HandleRefreshCache"
+                    disabled="@(_isBusy || _isRebooting)"
+                    title="Bersihkan cache apt + re-fetch index. Pakai kalau data terlihat stale.">
+                @if (_isRefreshing)
+                {
+                    <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+                }
+                else
+                {
+                    <span aria-hidden="true">🧹</span>
+                }
+                <span class="d-none d-sm-inline ms-1">Cache</span>
+            </button>
+            <button class="btn btn-sm btn-outline-primary"
+                    @onclick="HandleCheck"
+                    disabled="@(_isBusy || _isRebooting)">
+                @if (_isChecking)
+                {
+                    <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+                }
+                else
+                {
+                    <span aria-hidden="true">🔍</span>
+                }
+                <span class="d-none d-sm-inline ms-1">Cek</span>
+            </button>
+        </div>
+    </div>
+
+    @* === Summary badge (jika sudah ada data) === *@
+    @if (_summary is not null)
+    {
+        <div class="update-summary-row">
+            <div class="d-flex align-items-baseline gap-2 flex-wrap">
+                <span class="update-count @(_summary.TotalUpdates > 0 ? "has-updates" : "up-to-date")">
+                    @_summary.TotalUpdates
+                </span>
+                <span class="text-secondary small">package tersedia</span>
+                @if (_summary.SecurityUpdates > 0)
+                {
+                    <span class="badge text-bg-danger">🔒 @_summary.SecurityUpdates security</span>
+                }
+                @if (_summary.RebootRequired)
+                {
+                    <span class="badge text-bg-warning">⚠️ Reboot</span>
+                }
+            </div>
+        </div>
+    }
+
+    @* === Reboot Mode Lock === *@
+    @if (_isRebooting)
+    {
+        <div class="text-secondary small mt-2">
+            ⏸️ Update & reboot sedang berjalan. Tunggu sampai selesai.
+        </div>
+    }
+    else if (_summary is null && !_isChecking)
+    {
+        <div class="text-secondary small mt-2">
+            Klik <strong>🔍 Cek</strong> untuk lihat package yang perlu di-update.
+        </div>
+    }
+    else if (_summary is not null)
+    {
+        @* === Tab Bar === *@
+        <div class="update-tabs mt-3" role="tablist">
+            <button type="button"
+                    class="update-tab @(_activeTab == UpdateTab.Update ? "active" : null)"
+                    @onclick="@(() => _activeTab = UpdateTab.Update)"
+                    role="tab"
+                    aria-selected="@(_activeTab == UpdateTab.Update)">
+                <span aria-hidden="true">📦</span>
+                <span>Update</span>
+            </button>
+            <button type="button"
+                    class="update-tab @(_activeTab == UpdateTab.Force ? "active" : null)"
+                    @onclick="@(() => _activeTab = UpdateTab.Force)"
+                    role="tab"
+                    aria-selected="@(_activeTab == UpdateTab.Force)">
+                <span aria-hidden="true">🔧</span>
+                <span>Force</span>
+            </button>
+            <button type="button"
+                    class="update-tab @(_activeTab == UpdateTab.InstallByName ? "active" : null)"
+                    @onclick="@(() => _activeTab = UpdateTab.InstallByName)"
+                    role="tab"
+                    aria-selected="@(_activeTab == UpdateTab.InstallByName)">
+                <span aria-hidden="true">🎯</span>
+                <span>By Name</span>
+            </button>
+        </div>
+
+        @* === Tab Content === *@
+        <div class="update-tab-content mt-2">
+            @if (_activeTab == UpdateTab.Update)
+            {
+                <div class="tab-pane">
+                    <p class="tab-description">
+                        Standard upgrade pakai <code>apt-get upgrade</code>. Aman, conservative — skip phased update &amp; held package.
+                    </p>
+                    @if (_summary.RebootRequired)
+                    {
+                        <div class="alert alert-warning small py-1 px-2 mb-2">
+                            ⚠️ Reboot diperlukan setelah update.
+                            @if (_summary.RebootRequiredPackages.Count > 0)
+                            {
+                                <span class="text-secondary">(@string.Join(", ", _summary.RebootRequiredPackages.Take(3)))</span>
+                            }
+                        </div>
+                    }
+                    <button class="btn btn-primary w-100"
+                            @onclick="() => _showConfirm = UpdateTab.Update"
+                            disabled="@(_summary.TotalUpdates == 0 || _isBusy)">
+                        ▶ Update Packages
+                    </button>
+                </div>
+            }
+            else if (_activeTab == UpdateTab.Force)
+            {
+                <div class="tab-pane">
+                    <p class="tab-description">
+                        Pakai <code>apt full-upgrade</code> — lebih agresif, bypass phased updates. Bisa <strong>remove package obsolete</strong>.
+                    </p>
+                    <div class="alert alert-warning small py-1 px-2 mb-2">
+                        ⚠️ Hanya untuk kasus package stuck setelah update biasa.
+                    </div>
+                    <button class="btn btn-warning w-100"
+                            @onclick="() => _showConfirm = UpdateTab.Force"
+                            disabled="@(_summary.TotalUpdates == 0 || _isBusy)">
+                        🔧 Force Upgrade (Full)
+                    </button>
+                </div>
+            }
+            else if (_activeTab == UpdateTab.InstallByName)
+            {
+                <div class="tab-pane">
+                    <p class="tab-description">
+                        Force install package tertentu dengan <code>apt install --only-upgrade</code>. Paling granular.
+                    </p>
+                    <label class="form-label small fw-semibold mb-1">Nama package (pisahkan spasi/newline):</label>
+                    <textarea class="form-control font-monospace small"
+                              rows="3"
+                              @bind="_installByNameInput"
+                              placeholder="python3-software-properties&#10;software-properties-common"></textarea>
+                    <button class="btn btn-warning w-100 mt-2"
+                            @onclick="HandleInstallByNameDirect"
+                            disabled="@(string.IsNullOrWhiteSpace(_installByNameInput) || _isBusy)">
+                        🎯 Install
+                    </button>
+                </div>
+            }
+        </div>
+    }
+
+    @* === Reboot Status Banner === *@
+    @if (_rebootStatus is not null)
+    {
+        <div class="alert @_rebootStatusClass py-2 mt-2 mb-0 small d-flex align-items-center gap-2" role="status">
+            <span aria-hidden="true">@_rebootStatusIcon</span>
+            <div class="flex-grow-1">@_rebootStatus</div>
+            @if (_rebootPolling)
+            {
+                <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+            }
+        </div>
+    }
+</div>
+
+@* === Konfirmasi Modal (Update / Force) === *@
+@if (_showConfirm is not null)
+{
+    var isForce = _showConfirm == UpdateTab.Force;
+    <div class="modal-backdrop-custom" @onclick="() => _showConfirm = null">
+        <div class="modal-dialog-custom" @onclick:stopPropagation="true">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        @if (isForce)
+                        {
+                            <span>🔧 Konfirmasi Force Upgrade</span>
+                        }
+                        else
+                        {
+                            <span>⚠️ Konfirmasi Update</span>
+                        }
+                    </h5>
+                    <button type="button" class="btn-close" @onclick="() => _showConfirm = null" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    @if (isForce)
+                    {
+                        <p>Akan menjalankan <code>apt full-upgrade -y</code> — versi agresif.</p>
+                        <div class="alert alert-danger small">
+                            <strong>⚠️ Risiko:</strong>
+                            <ul class="mb-0">
+                                <li>BISA <strong>remove package</strong> yang dianggap obsolete</li>
+                                <li>Dependency resolution mungkin berubah</li>
+                                <li>Backup data penting sebelum lanjut</li>
+                            </ul>
+                        </div>
+                    }
+                    else
+                    {
+                        <p>Akan menjalankan <code>apt-get upgrade -y</code> di server.</p>
+                        <ul class="small text-body-secondary">
+                            <li><strong>@_summary?.TotalUpdates</strong> package akan di-upgrade</li>
+                            @if (_summary?.SecurityUpdates > 0)
+                            {
+                                <li><strong class="text-danger">@_summary.SecurityUpdates</strong> security update</li>
+                            }
+                        </ul>
+                        <div class="alert alert-warning small mb-0">
+                            Website mungkin down sebentar saat service restart otomatis.
+                        </div>
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="() => _showConfirm = null">Batal</button>
+                    <button type="button"
+                            class="@(isForce ? "btn btn-warning" : "btn btn-primary")"
+                            @onclick="ConfirmAndRun">
+                        @if (isForce)
+                        {
+                            <span>🔧 Ya, Force Upgrade</span>
+                        }
+                        else
+                        {
+                            <span>Ya, Update Sekarang</span>
+                        }
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@* === Update Progress Modal === *@
+@if (_isApplying || _result is not null)
+{
+    <div class="modal-backdrop-custom">
+        <div class="modal-dialog-custom modal-dialog-wide">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        @if (_isApplying)
+                        {
+                            <span>🔄 Sedang Proses...</span>
+                        }
+                        else if (_result?.Success == true)
+                        {
+                            <span>✅ Selesai</span>
+                        }
+                        else
+                        {
+                            <span>❌ Gagal</span>
+                        }
+                    </h5>
+                </div>
+                <div class="modal-body">
+                    <pre class="update-log">@_progressLog</pre>
+                </div>
+                <div class="modal-footer">
+                    @if (_isApplying)
+                    {
+                        <button type="button" class="btn btn-secondary" disabled>Sedang berjalan...</button>
+                    }
+                    else
+                    {
+                        <button type="button" class="btn btn-primary" @onclick="CloseProgress">Tutup</button>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@* === Konfirmasi Reboot Modal === *@
+@if (_showRebootConfirm)
+{
+    <div class="modal-backdrop-custom" @onclick="() => _showRebootConfirm = false">
+        <div class="modal-dialog-custom" @onclick:stopPropagation="true">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">⚠️ Konfirmasi Reboot</h5>
+                    <button type="button" class="btn-close" @onclick="() => _showRebootConfirm = false" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Server akan reboot dalam <strong>1 menit</strong>. Anda punya waktu untuk cancel.</p>
+                    <div class="alert alert-danger small">
+                        <strong>⚠️ Dampak:</strong>
+                        <ul class="mb-0">
+                            <li>Website akan <strong>down</strong> ~30-60 detik</li>
+                            <li>SSH koneksi akan drop otomatis</li>
+                            <li>Service (nginx, php-fpm, database) akan restart</li>
+                            <li>App ini akan otomatis detect saat server kembali online</li>
+                            <li>Setelah reboot, app akan auto-cek update lagi</li>
+                        </ul>
+                    </div>
+                    <div class="alert alert-info small mb-0">
+                        💡 <strong>Cancel dalam 1 menit:</strong><br />
+                        <code>ssh root@rizky.pro "sudo shutdown -c"</code>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="() => _showRebootConfirm = false">Batal</button>
+                    <button type="button" class="btn btn-danger" @onclick="HandleReboot">
+                        🔌 Ya, Reboot Server
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private enum UpdateTab { Update, Force, InstallByName }
+
+    [Parameter, EditorRequired] public SshConnectionConfig Config { get; set; } = null!;
+    [Parameter] public EventCallback OnUpdated { get; set; }
+
+    [Inject] private IUpdateService UpdateService { get; set; } = null!;
+    [Inject] private IServerControlService ServerControl { get; set; } = null!;
+    [Inject] private IUpdateLogService LogService { get; set; } = null!;
+
+    private UpdateSummary? _summary;
+    private UpdateResult? _result;
+
+    private bool _isChecking;
+    private bool _isRefreshing;
+    private bool _isApplying;
+    private bool _isRebooting;
+    private bool _rebootPolling;
+    private string _progressLog = string.Empty;
+
+    private bool _isBusy => _isChecking || _isRefreshing || _isApplying;
+    private UpdateTab _activeTab = UpdateTab.Update;
+    private UpdateTab? _showConfirm = null;
+    private bool _showRebootConfirm;
+    private string _installByNameInput = string.Empty;
+
+    private string? _rebootStatus;
+    private string _rebootStatusIcon = "";
+    private string _rebootStatusClass = "alert-info";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await HandleCheck();
+    }
+
+    private async Task HandleCheck()
+    {
+        _isChecking = true;
+        try { _summary = await UpdateService.GetAvailableUpdatesAsync(Config); }
+        finally { _isChecking = false; }
+    }
+
+    private async Task HandleRefreshCache()
+    {
+        _isRefreshing = true;
+        _progressLog = string.Empty;
+        _result = null;
+        var logBuilder = new System.Text.StringBuilder();
+        var progress = new Progress<string>(line =>
+        {
+            _progressLog += line + "\n";
+            logBuilder.AppendLine(line);
+            InvokeAsync(StateHasChanged);
+        });
+
+        try
+        {
+            _result = await UpdateService.RefreshAptCacheAsync(Config, progress);
+            await LogService.AddAsync(new UpdateLogEntry
+            {
+                StartedAt = DateTime.UtcNow,
+                FinishedAt = DateTime.UtcNow,
+                Action = "check",
+                Success = _result.Success,
+                Summary = "Refresh apt cache (apt clean + apt update).",
+                FullLog = logBuilder.ToString(),
+                ErrorMessage = _result.ErrorMessage,
+            });
+            // Re-check setelah refresh
+            _summary = await UpdateService.GetAvailableUpdatesAsync(Config);
+        }
+        finally
+        {
+            _isRefreshing = false;
+        }
+    }
+
+    private void ConfirmAndRun()
+    {
+        var tab = _showConfirm;
+        _showConfirm = null;
+        if (tab == UpdateTab.Update) _ = HandleApplyUpgrade();
+        else if (tab == UpdateTab.Force) _ = HandleApplyForce();
+    }
+
+    private async Task HandleApplyUpgrade()
+    {
+        await RunAndLog(
+            label: "apt-get upgrade -y",
+            runner: progress => UpdateService.ApplyUpdatesAsync(Config, progress),
+            action: "update",
+            summaryOk: r => $"Update selesai. {r.PackagesUpgraded} package di-upgrade." + (r.RebootRequired ? " Reboot diperlukan." : ""));
+    }
+
+    private async Task HandleApplyForce()
+    {
+        await RunAndLog(
+            label: "apt full-upgrade -y",
+            runner: progress => UpdateService.ApplyFullUpgradeAsync(Config, progress),
+            action: "force-upgrade",
+            summaryOk: r => $"Force upgrade selesai. {r.PackagesUpgraded} package di-upgrade." + (r.RebootRequired ? " Reboot diperlukan." : ""));
+    }
+
+    private async Task HandleInstallByNameDirect()
+    {
+        var packageNames = _installByNameInput
+            .Split(new[] { '\n', '\r', ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries)
+            .ToList();
+        if (packageNames.Count == 0) return;
+
+        await RunAndLog(
+            label: $"apt install -y --only-upgrade {string.Join(" ", packageNames)}",
+            runner: progress => UpdateService.InstallPackagesAsync(Config, packageNames, progress),
+            action: "install-by-name",
+            summaryOk: r => $"Install by name selesai: {string.Join(", ", packageNames)}. {r.PackagesUpgraded} package di-upgrade." + (r.RebootRequired ? " Reboot diperlukan." : ""));
+        _installByNameInput = string.Empty;
+    }
+
+    private async Task RunAndLog(
+        string label,
+        Func<IProgress<string>, Task<UpdateResult>> runner,
+        string action,
+        Func<UpdateResult, string> summaryOk)
+    {
+        _isApplying = true;
+        _progressLog = string.Empty;
+        _result = null;
+        var startedAt = DateTime.UtcNow;
+        var logBuilder = new System.Text.StringBuilder();
+        var progress = new Progress<string>(line =>
+        {
+            _progressLog += line + "\n";
+            logBuilder.AppendLine(line);
+            InvokeAsync(StateHasChanged);
+        });
+
+        try
+        {
+            _result = await runner(progress);
+            await OnUpdated.InvokeAsync();
+            await LogService.AddAsync(new UpdateLogEntry
+            {
+                StartedAt = startedAt,
+                FinishedAt = DateTime.UtcNow,
+                Action = action,
+                Success = _result.Success,
+                PackagesUpgraded = _result.PackagesUpgraded,
+                RebootRequired = _result.RebootRequired,
+                Summary = _result.Success ? summaryOk(_result) : $"{action} gagal.",
+                FullLog = logBuilder.ToString(),
+                ErrorMessage = _result.ErrorMessage,
+            });
+            _summary = await UpdateService.GetAvailableUpdatesAsync(Config);
+        }
+        finally
+        {
+            _isApplying = false;
+        }
+    }
+
+    private void CloseProgress()
+    {
+        _result = null;
+        _progressLog = string.Empty;
+    }
+
+    private async Task HandleReboot()
+    {
+        _showRebootConfirm = false;
+        _isRebooting = true;
+        SetRebootStatus("🔄 Mengirim perintah shutdown...", "⏳", "alert-info");
+
+        var startedAt = DateTime.UtcNow;
+        var rebootSuccess = false;
+        var rebootError = (string?)null;
+
+        try { await ServerControl.RebootAsync(Config, delayMinutes: 1); rebootSuccess = true; }
+        catch (Exception ex) { rebootError = ex.Message; }
+
+        await LogService.AddAsync(new UpdateLogEntry
+        {
+            StartedAt = startedAt,
+            FinishedAt = DateTime.UtcNow,
+            Action = "reboot",
+            Success = rebootSuccess,
+            RebootPerformed = true,
+            Summary = rebootSuccess ? "Perintah reboot dikirim (delay 1 menit)." : $"Gagal kirim reboot: {rebootError}",
+            ErrorMessage = rebootError,
+        });
+
+        SetRebootStatus("⏳ Menunggu SSH drop (~30-60 detik)...", "⏳", "alert-info");
+        try { await Task.Delay(TimeSpan.FromSeconds(30)); } catch { }
+
+        var pollingResult = await PollServerOnline();
+        await LogService.AddAsync(new UpdateLogEntry
+        {
+            StartedAt = DateTime.UtcNow.AddMinutes(-1),
+            FinishedAt = DateTime.UtcNow,
+            Action = "check",
+            Success = pollingResult.online,
+            RebootRequired = pollingResult.stillRebootRequired,
+            Summary = pollingResult.online ? "Server kembali online setelah reboot." : (pollingResult.error ?? "Server masih offline."),
+            ErrorMessage = pollingResult.online ? null : pollingResult.error,
+        });
+    }
+
+    private async Task<(bool online, bool stillRebootRequired, string? error)> PollServerOnline()
+    {
+        _rebootPolling = true;
+        SetRebootStatus("🔍 Polling apakah server sudah online kembali...", "🔄", "alert-info");
+        var maxAttempts = 60;
+        for (int i = 0; i < maxAttempts; i++)
+        {
+            if (await ServerControl.PingAsync(Config))
+            {
+                SetRebootStatus("✅ Server kembali online! Auto-refresh data...", "✅", "alert-success");
+                _rebootPolling = false;
+                _isRebooting = false;
+                await OnUpdated.InvokeAsync();
+                var freshSummary = await UpdateService.GetAvailableUpdatesAsync(Config);
+                _summary = freshSummary;
+                StateHasChanged();
+                return (true, freshSummary.RebootRequired, null);
+            }
+            SetRebootStatus($"🔍 Menunggu server online... (percobaan {i + 1}/{maxAttempts}, ~{(i + 1) * 5}s)", "🔄", "alert-info");
+            try { await Task.Delay(TimeSpan.FromSeconds(5)); } catch { }
+        }
+        var errMsg = "Server masih offline setelah 5 menit. Cek manual via Hetzner console.";
+        SetRebootStatus($"❌ {errMsg}", "❌", "alert-danger");
+        _rebootPolling = false;
+        _isRebooting = false;
+        return (false, false, errMsg);
+    }
+
+    private void SetRebootStatus(string message, string icon, string cssClass)
+    {
+        _rebootStatus = message;
+        _rebootStatusIcon = icon;
+        _rebootStatusClass = cssClass;
+        InvokeAsync(StateHasChanged);
+    }
+}

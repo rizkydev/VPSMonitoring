@@ -1,0 +1,261 @@
+@page "/settings"
+@inject ISshService SshService
+@inject ICredentialStore CredentialStore
+@inject NavigationManager Nav
+
+<PageTitle>Pengaturan SSH — Hetzner VPS Monitor</PageTitle>
+
+<div class="settings-page container py-4">
+    <div class="row justify-content-center">
+        <div class="col-12 col-lg-8 col-xl-6">
+            <div class="card settings-card shadow-sm">
+                <div class="card-body p-4 p-md-5">
+                    <div class="d-flex align-items-center gap-2 mb-1">
+                        <span class="settings-icon" aria-hidden="true">⚙️</span>
+                        <h1 class="h3 mb-0">Pengaturan Koneksi SSH</h1>
+                    </div>
+                    <p class="text-secondary mb-4">
+                        Hubungkan ke VPS Hetzner Anda untuk mulai monitoring. Kredensial disimpan
+                        terenkripsi di OS keychain (Windows Credential Manager / macOS Keychain).
+                    </p>
+
+                    @if (_isEditMode)
+                    {
+                        <div class="alert alert-info py-2 small">
+                            ✏️ Mode edit — kredensial tersimpan sudah dimuat. Test koneksi lagi
+                            sebelum menyimpan untuk memastikan konfigurasi baru valid.
+                        </div>
+                    }
+
+                    <EditForm Model="@_config" OnValidSubmit="HandleSave" class="mt-3">
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold" for="host">Host / IP VPS</label>
+                            <InputText id="host"
+                                       class="form-control form-control-lg"
+                                       @bind-Value="_config.Host"
+                                       placeholder="mis. 188.40.100.50"
+                                       autocomplete="off" />
+                        </div>
+
+                        <div class="row g-3 mb-3">
+                            <div class="col-sm-4">
+                                <label class="form-label fw-semibold" for="port">Port</label>
+                                <InputNumber id="port"
+                                             class="form-control form-control-lg"
+                                             @bind-Value="_config.Port" />
+                            </div>
+                            <div class="col-sm-8">
+                                <label class="form-label fw-semibold" for="username">Username</label>
+                                <input id="username"
+                                       class="form-control form-control-lg"
+                                       value="@_config.Username"
+                                       readonly
+                                       aria-readonly="true" />
+                                <small class="text-secondary">
+                                    Saat ini dikunci ke <code>root</code> untuk VPS Hetzner.
+                                </small>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold d-block">Metode Autentikasi</label>
+                            <div class="btn-group w-100" role="group" aria-label="Auth method">
+                                <input type="radio"
+                                       class="btn-check"
+                                       id="auth-pw"
+                                       name="authMethod"
+                                       checked="@(_config.AuthMethod == SshAuthMethod.Password)"
+                                       @onchange="@(() => SwitchAuth(SshAuthMethod.Password))" />
+                                <label class="btn btn-outline-primary" for="auth-pw">
+                                    🔑 Password
+                                </label>
+
+                                <input type="radio"
+                                       class="btn-check"
+                                       id="auth-key"
+                                       name="authMethod"
+                                       checked="@(_config.AuthMethod == SshAuthMethod.PrivateKey)"
+                                       @onchange="@(() => SwitchAuth(SshAuthMethod.PrivateKey))" />
+                                <label class="btn btn-outline-primary" for="auth-key">
+                                    🗝️ Private Key
+                                </label>
+                            </div>
+                        </div>
+
+                        @if (_config.AuthMethod == SshAuthMethod.Password)
+                        {
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold" for="password">Password</label>
+                                <InputText id="password"
+                                           type="password"
+                                           class="form-control form-control-lg"
+                                           @bind-Value="_config.Password"
+                                           autocomplete="current-password" />
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold" for="privatekey">
+                                    Private Key
+                                </label>
+                                <InputTextArea id="privatekey"
+                                               class="form-control font-monospace"
+                                               rows="7"
+                                               @bind-Value="_config.PrivateKey"
+                                               placeholder="-----BEGIN OPENSSH PRIVATE KEY-----&#10;..." />
+                                <small class="text-secondary">
+                                    Tempel isi key, atau masukkan path ke file <code>.pem</code>.
+                                </small>
+                            </div>
+                        }
+
+                        @if (!string.IsNullOrEmpty(_statusMessage))
+                        {
+                            <div class="alert @(_statusIsSuccess ? "alert-success" : "alert-danger") py-2 mb-3 d-flex align-items-start gap-2">
+                                <span aria-hidden="true">@(_statusIsSuccess ? "✅" : "⚠️")</span>
+                                <div>
+                                    @_statusMessage
+                                    @if (_statusIsSuccess && !string.IsNullOrEmpty(_serverInfo))
+                                    {
+                                        <div class="small mt-1 text-body-secondary font-monospace">
+                                            @_serverInfo
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        }
+
+                        <div class="d-flex flex-wrap gap-2 justify-content-end mt-4">
+                            @if (_isEditMode)
+                            {
+                                <button type="button"
+                                        class="btn btn-outline-danger"
+                                        @onclick="HandleReset"
+                                        disabled="@_isBusy">
+                                    Hapus Kredensial
+                                </button>
+                            }
+                            <button type="button"
+                                    class="btn btn-outline-primary"
+                                    @onclick="HandleTest"
+                                    disabled="@_isBusy">
+                                @if (_isTesting)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                                    <span>Menguji...</span>
+                                }
+                                else
+                                {
+                                    <span>Test Koneksi</span>
+                                }
+                            </button>
+                            <button type="submit"
+                                    class="btn btn-primary"
+                                    disabled="@(!_testSuccess || _isBusy)">
+                                @if (_isSaving)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                                    <span>Menyimpan...</span>
+                                }
+                                else
+                                {
+                                    <span>@(_isEditMode ? "Simpan Perubahan" : "Simpan & Masuk Dashboard")</span>
+                                }
+                            </button>
+                        </div>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private SshConnectionConfig _config = SshConnectionConfig.Empty();
+    private bool _isEditMode;
+    private bool _isTesting;
+    private bool _isSaving;
+    private bool _isBusy => _isTesting || _isSaving;
+    private bool _testSuccess;
+    private bool _statusIsSuccess;
+    private string? _statusMessage;
+    private string? _serverInfo;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var existing = await CredentialStore.LoadAsync();
+        if (existing is not null)
+        {
+            _config = existing;
+            _isEditMode = true;
+        }
+    }
+
+    private void SwitchAuth(SshAuthMethod method)
+    {
+        _config.AuthMethod = method;
+        // Reset test state karena metode auth berubah → hasil test sebelumnya tidak valid.
+        _testSuccess = false;
+        _statusMessage = null;
+        _serverInfo = null;
+    }
+
+    private async Task HandleTest()
+    {
+        _isTesting = true;
+        _statusMessage = null;
+        _serverInfo = null;
+        try
+        {
+            var result = await SshService.TestConnectionAsync(_config);
+            _testSuccess = result.Success;
+            _statusIsSuccess = result.Success;
+            _serverInfo = result.ServerInfo;
+
+            _statusMessage = result.Success
+                ? $"Berhasil terhubung dalam {result.LatencyMs} ms."
+                : result.ErrorMessage ?? "Gagal terhubung tanpa pesan error.";
+        }
+        catch (Exception ex)
+        {
+            _testSuccess = false;
+            _statusIsSuccess = false;
+            _statusMessage = $"Error tak terduga: {ex.Message}";
+        }
+        finally
+        {
+            _isTesting = false;
+        }
+    }
+
+    private async Task HandleSave()
+    {
+        _isSaving = true;
+        try
+        {
+            await CredentialStore.SaveAsync(_config);
+            Nav.NavigateTo("/");
+        }
+        catch (Exception ex)
+        {
+            _statusIsSuccess = false;
+            _statusMessage = $"Gagal menyimpan kredensial: {ex.Message}";
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private async Task HandleReset()
+    {
+        await CredentialStore.ClearAsync();
+        _config = SshConnectionConfig.Empty();
+        _isEditMode = false;
+        _testSuccess = false;
+        _statusIsSuccess = true;
+        _statusMessage = "Kredensial berhasil dihapus. Silakan masukkan konfigurasi baru.";
+        _serverInfo = null;
+    }
+}
