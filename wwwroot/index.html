@@ -73,19 +73,38 @@
 
     <!-- Fallback: kalau setelah 5 detik Blazor belum load, tambah info untuk debug -->
     <script>
+        // Tunggu 5 detik, lalu cek status loading
         setTimeout(function () {
-            var app = document.getElementById('app');
-            if (app && (!app.hasChildNodes() || app.innerHTML.trim() === '')) {
-                var loading = document.getElementById('app-loading');
-                if (loading) {
-                    var sub = loading.querySelector('.subtitle');
-                    if (sub) {
-                        sub.textContent = 'Blazor gagal inisialisasi. Pastikan .NET 10 Runtime, WebView2 Runtime, dan Windows App Runtime sudah terinstall.';
-                        sub.style.color = '#ff8888';
-                    }
-                }
+            var loading = document.getElementById('app-loading');
+            if (!loading) return; // Blazor sudah mount & remove loading, OK
+
+            // Loading masih ada setelah 5 detik — Blazor stuck
+            var sub = loading.querySelector('.subtitle');
+            if (sub) {
+                sub.innerHTML = 'Blazor butuh waktu lama untuk inisialisasi.<br>Cek <b>WebView2 Runtime</b>, <b>.NET 10 Runtime</b>, dan <b>Windows App Runtime</b> sudah terinstall.';
+                sub.style.color = '#ffaa66';
             }
         }, 5000);
+
+        // Hard fallback setelah 15 detik
+        setTimeout(function () {
+            var loading = document.getElementById('app-loading');
+            if (!loading) return;
+
+            var sub = loading.querySelector('.subtitle');
+            if (sub) {
+                sub.innerHTML = '<b>Blazor tidak bisa inisialisasi.</b><br>Kemungkinan dependency missing atau ada error.<br><br>' +
+                    '<b>Cara debug:</b><br>' +
+                    '1. Tutup app<br>' +
+                    '2. Buka <b>Command Prompt</b> (cmd)<br>' +
+                    '3. cd ke folder install (mis. C:\\Program Files\\VPS Monitoring Desktop)<br>' +
+                    '4. Jalankan: <code style="background:#000;padding:2px 6px;border-radius:3px">VPS Monitor Desktop App.exe</code><br>' +
+                    '5. Lihat error di console';
+                sub.style.color = '#ff8888';
+            }
+            var spinner = loading.querySelector('.spinner');
+            if (spinner) spinner.style.display = 'none';
+        }, 15000);
     </script>
 
 </body>

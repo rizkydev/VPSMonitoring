@@ -9,7 +9,7 @@ namespace VPS_Monitor_Desktop_App.Application.Interfaces;
 public interface ICredentialStore
 {
     Task SaveAsync(SshConnectionConfig config);
-    Task<SshConnectionConfig?> LoadAsync();
+    Task<SshConnectionConfig?> LoadAsync(CancellationToken ct = default);
     Task ClearAsync();
     Task<bool> HasCredentialsAsync();
 }

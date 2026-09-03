@@ -182,13 +182,36 @@
     private string? _statusMessage;
     private string? _serverInfo;
 
-    protected override async Task OnInitializedAsync()
+    protected override void OnInitialized()
     {
-        var existing = await CredentialStore.LoadAsync();
-        if (existing is not null)
+        // Fire-and-forget: kalau SecureStorage lambat, page tetap render
+        _ = LoadCredentialsAsync();
+    }
+
+    private async Task LoadCredentialsAsync()
+    {
+        try
         {
-            _config = existing;
-            _isEditMode = true;
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+            var loadTask = CredentialStore.LoadAsync(cts.Token);
+            var completed = await Task.WhenAny(loadTask, Task.Delay(2000, cts.Token));
+            if (completed == loadTask)
+            {
+                var existing = await loadTask;
+                if (existing is not null)
+                {
+                    _config = existing;
+                    _isEditMode = true;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[Settings.LoadCredentials] {ex.Message}");
+        }
+        finally
+        {
+            StateHasChanged();
         }
     }
 

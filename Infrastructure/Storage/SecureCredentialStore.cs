@@ -37,23 +37,36 @@ public sealed class SecureCredentialStore : ICredentialStore
         }
     }
 
-    public async Task<SshConnectionConfig?> LoadAsync()
+    public async Task<SshConnectionConfig?> LoadAsync(CancellationToken ct = default)
     {
-        var host = await SecureStorage.Default.GetAsync(HostKey);
-        if (string.IsNullOrEmpty(host))
+        // SecureStorage di Windows MAUI Hybrid sering hang/timeout karena WinRT API init.
+        // Wrap di try-catch + return null pada error apapun supaya UI tidak stuck.
+        try
+        {
+            ct.ThrowIfCancellationRequested();
+
+            var host = await SecureStorage.Default.GetAsync(HostKey).WaitAsync(TimeSpan.FromSeconds(2), ct);
+            if (string.IsNullOrEmpty(host))
+                return null;
+
+            var portStr = await SecureStorage.Default.GetAsync(PortKey).WaitAsync(TimeSpan.FromSeconds(2), ct);
+            var port = int.TryParse(portStr, out var p) ? p : 22;
+
+            var username = await SecureStorage.Default.GetAsync(UsernameKey).WaitAsync(TimeSpan.FromSeconds(2), ct) ?? "root";
+            var authStr = await SecureStorage.Default.GetAsync(AuthMethodKey).WaitAsync(TimeSpan.FromSeconds(2), ct);
+            var auth = Enum.TryParse<SshAuthMethod>(authStr, out var a) ? a : SshAuthMethod.Password;
+
+            var password = await SecureStorage.Default.GetAsync(PasswordKey).WaitAsync(TimeSpan.FromSeconds(2), ct);
+            var privateKey = await SecureStorage.Default.GetAsync(PrivateKeyKey).WaitAsync(TimeSpan.FromSeconds(2), ct);
+
+            return new SshConnectionConfig(host, port, username, auth, password, privateKey);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // SecureStorage gagal (hang/timeout/exception) — treat as no credentials
+            System.Diagnostics.Debug.WriteLine($"[SecureCredentialStore.LoadAsync] Failed: {ex.Message}");
             return null;
-
-        var portStr = await SecureStorage.Default.GetAsync(PortKey);
-        var port = int.TryParse(portStr, out var p) ? p : 22;
-
-        var username = (await SecureStorage.Default.GetAsync(UsernameKey)) ?? "root";
-        var authStr = await SecureStorage.Default.GetAsync(AuthMethodKey);
-        var auth = Enum.TryParse<SshAuthMethod>(authStr, out var a) ? a : SshAuthMethod.Password;
-
-        var password = await SecureStorage.Default.GetAsync(PasswordKey);
-        var privateKey = await SecureStorage.Default.GetAsync(PrivateKeyKey);
-
-        return new SshConnectionConfig(host, port, username, auth, password, privateKey);
+        }
     }
 
     public async Task<bool> HasCredentialsAsync()

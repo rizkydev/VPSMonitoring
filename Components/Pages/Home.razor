@@ -312,12 +312,36 @@
 
     private bool IsLoading => _isLoading && _snapshot is null;
 
-    protected override async Task OnInitializedAsync()
+    protected override void OnInitialized()
     {
-        _config = await CredentialStore.LoadAsync();
-        if (_config is null)
+        // Fire-and-forget: jangan block render kalau SecureStorage lambat/hang
+        _ = LoadCredentialsAsync();
+    }
+
+    private async Task LoadCredentialsAsync()
+    {
+        try
         {
-            Nav.NavigateTo("/settings", forceLoad: false);
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+            var loadTask = CredentialStore.LoadAsync(cts.Token);
+            var completed = await Task.WhenAny(loadTask, Task.Delay(2000, cts.Token));
+            if (completed == loadTask)
+            {
+                _config = await loadTask;
+                if (_config is null)
+                {
+                    Nav.NavigateTo("/settings", forceLoad: false);
+                }
+            }
+            // Kalau timeout, tetap render dengan _config=null
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[Home.LoadCredentials] {ex.Message}");
+        }
+        finally
+        {
+            StateHasChanged();
         }
     }
 
