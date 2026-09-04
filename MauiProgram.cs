@@ -9,6 +9,29 @@ namespace VPS_Monitor_Desktop_App
     {
         public static MauiApp CreateMauiApp()
         {
+            // ------------------------------------------------------------------
+            // WINDOWS ONLY: paksa WebView2 pakai user data folder di %LOCALAPPDATA%.
+            //
+            // Default UDF untuk Win32 (unpackaged) = <exe-dir>\<exe-name>.WebView2\
+            // Saat app di-install ke C:\Program Files\VPSMonitoringDesktop\,
+            // folder itu ada tapi user cuma punya (RX) read+execute — WebView2
+            // gak bisa write, init silent-fail, BlazorWebView hitam.
+            //
+            // WebView2 baca env var WEBVIEW2_USER_DATA_FOLDER SEBELUM init dan
+            // override default. Folder %LOCALAPPDATA%\VPSMonitoringDesktop\WebView2Data
+            // selalu writable (user-owned).
+            //
+            // Reference: https://learn.microsoft.com/microsoft-edge/webview2/concepts/user-data-folder
+            // ------------------------------------------------------------------
+#if WINDOWS
+            var webView2UserDataFolder = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "VPSMonitoringDesktop",
+                "WebView2Data");
+            Directory.CreateDirectory(webView2UserDataFolder);
+            Environment.SetEnvironmentVariable("WEBVIEW2_USER_DATA_FOLDER", webView2UserDataFolder);
+#endif
+
             var builder = MauiApp.CreateBuilder();
             builder
                 .UseMauiApp<App>()

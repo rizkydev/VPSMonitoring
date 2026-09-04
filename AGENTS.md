@@ -178,6 +178,49 @@ dotnet --list-runtimes
 
 **Current state in this project**: Standard MAUI template reverted (no custom index.html, no MauiAsset for wwwroot). If user tests now, app will show "Loading..." forever with no error. To enable better error messages, can re-apply the custom index.html with `setTimeout` fallbacks from git history.
 
+### ⚠️ WebView2 UDF di Program Files = BlazorWebView Hitam (Resolved via env var)
+
+**Symptom**: App jalan dari `C:\Program Files\VPSMonitoringDesktop\` (hasil install) muncul window tapi content hitam total. Debug + Release standalone dari `bin/Release\...\publish\` jalan normal. Tidak ada error di console/Event Viewer.
+
+**Root cause**: WebView2 default user data folder (UDF) untuk Win32 unpackaged = `<exe-dir>\<exe-name>.WebView2\`. Saat user install ke `C:\Program Files\`, folder `VPS Monitor Desktop App.exe.WebView2\EBWebView\` dibuat oleh admin context dengan ACL `BUILTIN\Users:(RX)` only (gak ada Write). WebView2 butuh RW untuk LOCK files, cache, dll → init silent-fail → BlazorWebView gak render apa-apa.
+
+**Diagnostic** (sudah divalidate manual):
+```powershell
+# Window ada tapi content hitam
+Get-Process -Name "VPS*" | Select-Object MainWindowTitle
+# → "VPS Monitoring Desktop" (title correct, content black)
+
+# NO VPS-owned WebView2 spawned (vs 6 di working publish)
+Get-Process -Name "msedgewebview2" | Where-Object {
+    (Get-CimInstance Win32_Process -Filter "ProcessId = $($_.Id)").CommandLine -match "VPS"
+} | Measure-Object
+# → Count: 0  (should be 6 if working)
+
+# NO UDF created at default location
+Test-Path "$env:LOCALAPPDATA\VPS Monitor Desktop App.exe\EBWebView"
+# → False
+
+# Stale UDF di install dir, user can't write
+Test-Path "C:\Program Files\VPSMonitoringDesktop\VPS Monitor Desktop App.exe.WebView2\EBWebView"
+# → True (with Cache/, Default/, etc) but ACL locks user
+```
+
+**Fix** (di `MauiProgram.cs`): set env var `WEBVIEW2_USER_DATA_FOLDER` ke `%LOCALAPPDATA%\VPSMonitoringDesktop\WebView2Data` SEBELUM WebView2 init. WebView2 baca env var ini dan override default UDF. Folder `%LOCALAPPDATA%` selalu user-writable.
+
+```csharp
+#if WINDOWS
+var webView2UserDataFolder = Path.Combine(
+    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+    "VPSMonitoringDesktop", "WebView2Data");
+Directory.CreateDirectory(webView2UserDataFolder);
+Environment.SetEnvironmentVariable("WEBVIEW2_USER_DATA_FOLDER", webView2UserDataFolder);
+#endif
+```
+
+**Reference**: https://learn.microsoft.com/microsoft-edge/webview2/concepts/user-data-folder#specifying-a-custom-udf-location
+
+**Verified**: Build + silent reinstall → app render dashboard lengkap dari `C:\Program Files\VPSMonitoringDesktop\`, 6 VPS-owned WebView2 spawned, UDF di `%LOCALAPPDATA%\VPSMonitoringDesktop\WebView2Data\`.
+
 ## Pending / Future Work
 
 Dari brief, 10 fitur opsional. Status:
