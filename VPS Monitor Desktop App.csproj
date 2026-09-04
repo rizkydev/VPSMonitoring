@@ -68,6 +68,10 @@
 
         <!-- Raw Assets (also remove the "Resources\Raw" prefix) -->
         <MauiAsset Include="Resources\Raw\**" LogicalName="%(RecursiveDir)%(Filename)%(Extension)" />
+
+        <!-- wwwroot (Blazor Hybrid) — embed as resource supaya BlazorWebView bisa load di installed location.
+             Tanpa ini, BlazorWebView mungkin gagal load index.html di C:\Program Files\... karena permission/path. -->
+        <MauiAsset Include="wwwroot\**" LogicalName="%(RecursiveDir)%(Filename)%(Extension)" />
     </ItemGroup>
 
     <ItemGroup>
