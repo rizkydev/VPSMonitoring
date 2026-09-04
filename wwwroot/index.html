@@ -9,6 +9,27 @@
     <link rel="stylesheet" href="app.css" />
     <link rel="stylesheet" href="VPS Monitor Desktop App.styles.css" />
     <link rel="icon" href="data:,">
+    <style>
+        /* Visible diagnostic area — kalau Blazor init gagal, error muncul di sini */
+        #diagnostic {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            max-height: 50vh;
+            overflow-y: auto;
+            background: #1a1a1a;
+            color: #ff8888;
+            font-family: monospace;
+            font-size: 11px;
+            padding: 8px 12px;
+            border-top: 2px solid #dc3545;
+            z-index: 99999;
+            white-space: pre-wrap;
+            display: none;
+        }
+        #diagnostic.show { display: block; }
+    </style>
 </head>
 
 <body data-bs-theme="dark">
@@ -17,6 +38,8 @@
 
     <div id="app">Loading...</div>
 
+    <div id="diagnostic"></div>
+
     <div id="blazor-error-ui" data-nosnippet>
         An unhandled error has occurred.
         <a href="." class="reload">Reload</a>
@@ -24,6 +47,65 @@
     </div>
 
     <script src="_framework/blazor.webview.js" autostart="false"></script>
+
+    <script>
+        // ===== Visible diagnostic untuk debug BlazorWebView init issue =====
+        (function () {
+            var diag = document.getElementById('diagnostic');
+            var log = [];
+
+            function append(msg) {
+                log.push('[' + new Date().toISOString().slice(11, 19) + '] ' + msg);
+                if (diag) {
+                    diag.textContent = log.join('\n');
+                    diag.classList.add('show');
+                }
+                // Also log to console untuk BlazorWebViewDeveloperTools
+                try { console.log(msg); } catch (e) { }
+            }
+
+            // Capture JS errors
+            window.addEventListener('error', function (e) {
+                append('ERROR: ' + e.message + ' @ ' + e.filename + ':' + e.lineno);
+            });
+
+            // Capture unhandled promise rejections
+            window.addEventListener('unhandledrejection', function (e) {
+                append('UNHANDLED: ' + (e.reason && e.reason.message ? e.reason.message : e.reason));
+            });
+
+            // Capture Blazor-specific events
+            document.addEventListener('DOMContentLoaded', function () {
+                append('DOMContentLoaded');
+            });
+            window.addEventListener('load', function () {
+                append('window.load');
+            });
+            window.addEventListener('beforeunload', function () {
+                append('beforeunload');
+            });
+
+            // Check if Blazor started (after a delay)
+            setTimeout(function () {
+                var appEl = document.getElementById('app');
+                if (appEl && (!appEl.hasChildNodes() || appEl.innerHTML.trim() === '')) {
+                    append('TIMEOUT 5s: #app masih kosong. Blazor init kemungkinan gagal.');
+                    append('window.Blazor: ' + (window.Blazor ? 'EXISTS' : 'undefined'));
+                } else {
+                    append('5s check: #app ada content, Blazor sepertinya init OK');
+                }
+            }, 5000);
+
+            setTimeout(function () {
+                append('TIMEOUT 15s diagnostic complete. #' + (log.length) + ' log entries.');
+                if (log.length < 3) {
+                    append('Catatan: log sedikit — kemungkinan Blazor script tidak jalan sama sekali.');
+                }
+            }, 15000);
+
+            append('Diagnostic script loaded');
+        })();
+    </script>
 
 </body>
 
