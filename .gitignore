@@ -18,6 +18,9 @@ AnyCPU/
 [Bb]uild[Ll]og.*
 *.[Pp]ublish.xml
 
+# Boleh commit build script & .cmd tooling
+# (jangan commit installer-output/, sudah di atas)
+
 # NuGet
 *.nupkg
 *.snupkg
