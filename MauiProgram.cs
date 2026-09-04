@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using VPS_Monitor_Desktop_App.Application.Interfaces;
+using VPS_Monitor_Desktop_App.Infrastructure.Services;
 using VPS_Monitor_Desktop_App.Infrastructure.Ssh;
 using VPS_Monitor_Desktop_App.Infrastructure.Storage;
 
@@ -49,6 +50,12 @@ namespace VPS_Monitor_Desktop_App
             builder.Services.AddSingleton<IUpdateService, SshUpdateService>();
             builder.Services.AddSingleton<IServerControlService, SshServerControlService>();
             builder.Services.AddSingleton<IUpdateLogService, JsonUpdateLogService>();
+
+            // Singleton STATE services — hold CancellationToken di level app (bukan component)
+            // supaya long-running process (Cek Sekarang, Update Packages) TIDAK ke-cancel
+            // saat user navigate ke page lain. Component subscribe event untuk re-render.
+            builder.Services.AddSingleton<ISnapshotCheckState, SnapshotCheckState>();
+            builder.Services.AddSingleton<IUpdateState, UpdateState>();
 
 #if DEBUG
     		builder.Services.AddBlazorWebViewDeveloperTools();

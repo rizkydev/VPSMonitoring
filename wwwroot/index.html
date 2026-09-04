@@ -10,25 +10,54 @@
     <link rel="stylesheet" href="VPS Monitor Desktop App.styles.css" />
     <link rel="icon" href="data:,">
     <style>
-        /* Visible diagnostic area — kalau Blazor init gagal, error muncul di sini */
+        /* Diagnostic panel — collapsed by default (1 baris status), expand on click.
+           Hijau = aman (Blazor init OK), merah = ada error/TIMEOUT. */
         #diagnostic {
             position: fixed;
             bottom: 0;
             left: 0;
             right: 0;
             max-height: 50vh;
-            overflow-y: auto;
             background: #1a1a1a;
-            color: #ff8888;
+            color: #d4d4d4;
             font-family: monospace;
             font-size: 11px;
-            padding: 8px 12px;
-            border-top: 2px solid #dc3545;
+            border-top: 2px solid #198754;
             z-index: 99999;
             white-space: pre-wrap;
+            display: flex;
+            flex-direction: column;
+        }
+        #diagnostic.has-error {
+            border-top-color: #dc3545;
+        }
+        #diagnostic.collapsed .diag-body {
             display: none;
         }
-        #diagnostic.show { display: block; }
+        .diag-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 4px 12px;
+            cursor: pointer;
+            user-select: none;
+            font-weight: 600;
+            color: #75e0a0;
+            background: rgba(25, 135, 84, 0.1);
+        }
+        #diagnostic.has-error .diag-header {
+            color: #ff8888;
+            background: rgba(220, 53, 69, 0.1);
+        }
+        .diag-header .toggle-icon {
+            font-family: monospace;
+            opacity: 0.7;
+        }
+        .diag-body {
+            overflow-y: auto;
+            padding: 8px 12px;
+            max-height: calc(50vh - 28px);
+        }
     </style>
 </head>
 
@@ -38,7 +67,13 @@
 
     <div id="app">Loading...</div>
 
-    <div id="diagnostic"></div>
+    <div id="diagnostic" class="collapsed">
+        <div class="diag-header" id="diag-header" role="button" tabindex="0" aria-expanded="false">
+            <span id="diag-status">⏳ Diagnostic…</span>
+            <span class="toggle-icon" aria-hidden="true">▴</span>
+        </div>
+        <div class="diag-body" id="diag-body"></div>
+    </div>
 
     <div id="blazor-error-ui" data-nosnippet>
         An unhandled error has occurred.
@@ -52,16 +87,60 @@
         // ===== Visible diagnostic untuk debug BlazorWebView init issue =====
         (function () {
             var diag = document.getElementById('diagnostic');
+            var diagHeader = document.getElementById('diag-header');
+            var diagBody = document.getElementById('diag-body');
+            var diagStatus = document.getElementById('diag-status');
             var log = [];
+            var hasError = false;
+
+            // Format waktu LOCAL (bukan UTC) — format 24 jam + timezone short
+            // Contoh: "13:45:22 WIB" (untuk Asia/Jakarta)
+            function fmtTime() {
+                try {
+                    return new Date().toLocaleTimeString('en-GB', {
+                        hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
+                    }) + ' ' + (Intl.DateTimeFormat().resolvedOptions().timeZone || '');
+                } catch (e) {
+                    return new Date().toTimeString().slice(0, 8);
+                }
+            }
 
             function append(msg) {
-                log.push('[' + new Date().toISOString().slice(11, 19) + '] ' + msg);
-                if (diag) {
-                    diag.textContent = log.join('\n');
-                    diag.classList.add('show');
+                log.push('[' + fmtTime() + '] ' + msg);
+                if (diagBody) {
+                    diagBody.textContent = log.join('\n');
+                    diagBody.scrollTop = diagBody.scrollHeight;
                 }
-                // Also log to console untuk BlazorWebViewDeveloperTools
-                try { console.log(msg); } catch (e) { }
+                // Tandai error + update status banner
+                if (/ERROR|UNHANDLED|TIMEOUT|Gagal|❌|fail/i.test(msg)) {
+                    hasError = true;
+                    updateStatus();
+                }
+            }
+
+            function updateStatus() {
+                if (!diag || !diagStatus) return;
+                if (hasError) {
+                    diag.classList.add('has-error');
+                    diagStatus.textContent = '⚠️ Diagnostic: ada error — klik untuk expand';
+                } else if (log.length > 0) {
+                    diagStatus.textContent = '✅ Diagnostic: aman — klik untuk expand';
+                }
+            }
+
+            // Toggle collapse/expand on header click
+            function toggle() {
+                if (!diag) return;
+                var collapsed = diag.classList.toggle('collapsed');
+                var icon = diagHeader.querySelector('.toggle-icon');
+                if (icon) icon.textContent = collapsed ? '▴' : '▾';
+                if (diagHeader) diagHeader.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+            }
+            if (diagHeader) {
+                diagHeader.addEventListener('click', toggle);
+                diagHeader.addEventListener('keydown', function (e) {
+                    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); }
+                });
             }
 
             // Capture JS errors
@@ -94,16 +173,19 @@
                 } else {
                     append('5s check: #app ada content, Blazor sepertinya init OK');
                 }
+                updateStatus();
             }, 5000);
 
             setTimeout(function () {
-                append('TIMEOUT 15s diagnostic complete. #' + (log.length) + ' log entries.');
+                append('15s check: diagnostic complete, #' + log.length + ' log entries');
                 if (log.length < 3) {
                     append('Catatan: log sedikit — kemungkinan Blazor script tidak jalan sama sekali.');
                 }
+                updateStatus();
             }, 15000);
 
             append('Diagnostic script loaded');
+            updateStatus();
         })();
     </script>
 
