@@ -11,7 +11,9 @@ namespace VPS_Monitor_Desktop_App.Infrastructure.Ssh;
 public sealed class SshServerControlService : IServerControlService
 {
     private const int PingTimeoutSeconds = 3;
-    private const int RebootCommandTimeoutSeconds = 10;
+    // Dinaikkan dari 10→30 detik. Server yang baru reboot atau sibuk bisa
+    // butuh waktu lebih lama untuk respond ke command 'shutdown'.
+    private const int RebootCommandTimeoutSeconds = 30;
 
     public async Task RebootAsync(SshConnectionConfig config, int delayMinutes = 1, CancellationToken ct = default)
     {

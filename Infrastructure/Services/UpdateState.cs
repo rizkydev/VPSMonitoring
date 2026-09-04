@@ -226,6 +226,20 @@ public sealed class UpdateState : IUpdateState, IDisposable
             Summary = pollingResult.online ? "Server kembali online setelah reboot." : (pollingResult.error ?? "Server masih offline."),
             ErrorMessage = pollingResult.online ? null : pollingResult.error,
         });
+
+        // Reboot selesai → bersihkan state yang trigger "Reboot diperlukan" warning
+        // dan modal progress dari Apply step. Server baru saja reboot, jadi flag
+        // reboot-required dari summary sebelumnya sudah tidak relevan.
+        if (pollingResult.online)
+        {
+            Result = null;
+            ProgressLog = string.Empty;
+            if (Summary is not null)
+            {
+                Summary.RebootRequired = false;
+            }
+            SetRebootStatus("✅ Reboot selesai. Server siap digunakan.", "✅", "alert-success");
+        }
     }
 
     private async Task<(bool online, bool stillRebootRequired, string? error)> PollServerOnline(SshConnectionConfig config)

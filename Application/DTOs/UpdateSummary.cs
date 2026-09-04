@@ -8,7 +8,7 @@ public sealed class UpdateSummary
     public DateTime CheckedAt { get; init; } = DateTime.UtcNow;
     public int TotalUpdates { get; init; }
     public int SecurityUpdates { get; init; }
-    public bool RebootRequired { get; init; }
+    public bool RebootRequired { get; set; }
     public IReadOnlyList<string> RebootRequiredPackages { get; init; } = Array.Empty<string>();
     public IReadOnlyList<PackageUpdate> Packages { get; init; } = Array.Empty<PackageUpdate>();
     public string? ErrorMessage { get; init; }

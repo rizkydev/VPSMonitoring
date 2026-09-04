@@ -16,7 +16,10 @@ namespace VPS_Monitor_Desktop_App.Infrastructure.Ssh;
 /// </summary>
 public sealed class SshMonitorService : IVpsMonitorService
 {
-    private const int CommandTimeoutSeconds = 20;
+    // SSH command timeout. Default SSH.NET OperationTimeout tidak reliable antar versi,
+    // jadi set eksplisit di SshCommand. Dinaikkan dari 20→60 detik supaya tahan
+    // terhadap server yang lambat (mis. baru selesai reboot, disk I/O tinggi, dll).
+    private const int CommandTimeoutSeconds = 60;
 
     private const string CombinedScript = """
         set +e
@@ -125,7 +128,12 @@ public sealed class SshMonitorService : IVpsMonitorService
             var output = await Task.Run(() =>
             {
                 ct.ThrowIfCancellationRequested();
-                using var cmd = client.RunCommand(CombinedScript);
+                // Pakai CreateCommand (bukan RunCommand) supaya bisa set CommandTimeout
+                // eksplisit. Default SSH.NET operation timeout gak reliable, terutama
+                // saat server baru reboot.
+                using var cmd = client.CreateCommand(CombinedScript);
+                cmd.CommandTimeout = TimeSpan.FromSeconds(CommandTimeoutSeconds);
+                cmd.Execute();
                 return cmd.Result ?? string.Empty;
             }, ct);
 
@@ -161,6 +169,19 @@ public sealed class SshMonitorService : IVpsMonitorService
             {
                 IsOnline = false,
                 ErrorMessage = "Pengecekan dibatalkan atau timeout.",
+            };
+        }
+        catch (Renci.SshNet.Common.SshOperationTimeoutException ex)
+        {
+            // Server lambat merespons. Umum terjadi setelah reboot, atau saat
+            // server sibuk (CPU/IO tinggi). Pesan lebih helpful + saran retry.
+            return new SystemSnapshot
+            {
+                IsOnline = false,
+                ErrorMessage = "Server lambat merespons (timeout). " +
+                               "Kemungkinan server baru selesai reboot atau sedang sibuk. " +
+                               "Tunggu 30-60 detik lalu coba lagi. " +
+                               $"(Detail: {ex.Message})",
             };
         }
         catch (Exception ex)

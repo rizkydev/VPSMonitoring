@@ -7,5 +7,8 @@
     <ArrayOfString>
       <string>C:\Program Files\dotnet\sdk\10.0.400\NuGet.Build.Tasks.Pack.targets</string>
     </ArrayOfString>
+    <ArrayOfString>
+      <string>C:\Users\Rocky\Documents\Workplace\Portofolio\VPS Monitor Desktop App\Infrastructure\Ssh\SshMonitorService.cs</string>
+    </ArrayOfString>
   </ArrayOfArrayOfString>
 </ArrayOfArrayOfArrayOfString>
