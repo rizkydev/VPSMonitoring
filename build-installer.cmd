@@ -10,7 +10,6 @@ set PROJECT_NAME=VPS Monitor Desktop App
 set TARGET_FRAMEWORK=net10.0-windows10.0.19041.0
 set RUNTIME=win-x64
 set CONFIG=Release
-set ISCC="C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
 
 REM Path absolut ke project (assume script di project root)
 set PROJECT_DIR=%~dp0
@@ -28,7 +27,7 @@ echo.
 REM Step 0: Kill any running instance + WebView2 processes
 echo [0/4] Membersihkan proses yang masih jalan...
 taskkill /F /IM "VPS Monitor Desktop App.exe" /T 2>nul
-taskkill /F /IM msedgewebview2.exe /T 2>nul
+taskkill /F /F /IM msedgewebview2.exe /T 2>nul
 echo.
 
 REM Step 1: Publish
@@ -49,18 +48,29 @@ if %ERRORLEVEL% neq 0 (
 echo Publish OK.
 echo.
 
-REM Step 2: Compile installer
+REM Step 2: Compile installer dengan Inno Setup
 echo [2/4] Compile installer dengan Inno Setup...
-if not exist "%ISCC%" (
-    echo *** INNO SETUP TIDAK DITEMUKAN di "%ISCC%" ***
+
+REM Cari ISCC.exe di lokasi standar. pushd trick supaya path ber-spasi gak bikin masalah.
+set "ISCC_PATH="
+if exist "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" set "ISCC_PATH=C:\Program Files (x86)\Inno Setup 6"
+if "%ISCC_PATH%"=="" if exist "C:\Program Files\Inno Setup 6\ISCC.exe" set "ISCC_PATH=C:\Program Files\Inno Setup 6"
+
+if "%ISCC_PATH%"=="" (
+    echo *** INNO SETUP TIDAK DITEMUKAN ***
     echo Install dengan: choco install innosetup -y
     exit /b 1
 )
-"%ISCC%" "%INSTALLER_SCRIPT%"
 
-if %ERRORLEVEL% neq 0 (
+REM pushd ke dir ISCC, lalu panggil ISCC.exe tanpa full path (cmd + TCC compatible)
+pushd "%ISCC_PATH%"
+ISCC.exe "%INSTALLER_SCRIPT%"
+set ISCC_ERR=%ERRORLEVEL%
+popd
+
+if %ISCC_ERR% neq 0 (
     echo.
-    echo *** COMPILE GAGAL. Cek error di atas. ***
+    echo *** COMPILE GAGAL. ISCC exit code: %ISCC_ERR% ***
     exit /b 1
 )
 echo Compile OK.
@@ -77,7 +87,7 @@ if exist "%INSTALLER_OUTPUT%\VPSMonitoringDesktop-Setup-1.0.0.exe" (
     echo   Installer: %INSTALLER_OUTPUT%\VPSMonitoringDesktop-Setup-1.0.0.exe
     echo.
     for %%F in ("%INSTALLER_OUTPUT%\VPSMonitoringDesktop-Setup-1.0.0.exe") do (
-        echo   Ukuran: %%~zF bytes (~%PROJECT_NAME% KB)
+        echo   Ukuran: %%~zF bytes
     )
     echo.
 ) else (
